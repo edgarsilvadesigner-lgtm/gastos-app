@@ -12,6 +12,7 @@ function getDb() {
   if (!dbPromise) {
     const client = new MongoClient(MONGODB_URI);
     dbPromise = client.connect().then((c) => c.db(DB_NAME));
+    dbPromise.catch(() => { dbPromise = null; });
   }
   return dbPromise;
 }
