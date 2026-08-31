@@ -180,8 +180,78 @@ input:focus { outline: none; border-color: var(--accent); }
 }
 .chip.active { background: var(--accent); color: white; }
 
+.type-tabs {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-card);
+  border-radius: 999px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.ttab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 9px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.ttab.active { background: var(--accent); color: white; }
+.ttab.active[data-type="income"] { background: #34a853; }
+
+.type-quick {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-card);
+  border-radius: 999px;
+  padding: 3px;
+  border: 1px solid var(--border);
+}
+
 .total-block { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
 .total-amount { font-size: 34px; font-weight: 700; }
+
+.balance-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.balance-item {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.balance-value { font-size: 14px; font-weight: 700; white-space: nowrap; }
+
+.export-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 11px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+.export-btn svg { width: 16px; height: 16px; }
+.balance-value.income { color: #34a853; }
+.balance-value.expense { color: #e5484d; }
 
 .period-tabs {
   display: flex;
@@ -353,6 +423,8 @@ input:focus { outline: none; border-color: var(--accent); }
 .category-option.selected { color: var(--text); }
 .category-option.selected .cat-icon { border-color: var(--text); }
 .category-option span.label { line-height: 1.2; text-align: center; }
+.cat-initial { font-size: 18px; font-weight: 700; color: white; }
+.cat-icon-add { background: var(--bg-card); border: 2px dashed var(--border) !important; color: var(--text-muted); }
 
 .date-quick { display: flex; gap: 8px; }
 

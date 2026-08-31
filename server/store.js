@@ -1,76 +1,98 @@
-const fs = require('fs');
-const path = require('path');
+const { MongoClient } = require('mongodb');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const DATA_FILE = path.join(DATA_DIR, 'expenses.json');
+const MONGODB_URI = process.env.MONGODB_URI;
+const DB_NAME = process.env.MONGODB_DB || 'gastos';
 
-function ensureFile() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ nextId: 1, expenses: [] }, null, 2));
+let dbPromise = null;
+
+function getDb() {
+  if (!MONGODB_URI) {
+    throw new Error('MONGODB_URI não está definida. Configura essa variável de ambiente com a ligação à base de dados.');
   }
-}
-
-function readData() {
-  ensureFile();
-  const raw = fs.readFileSync(DATA_FILE, 'utf8');
-  try {
-    return JSON.parse(raw);
-  } catch (err) {
-    throw new Error(`Failed to parse ${DATA_FILE}: ${err.message}`);
+  if (!dbPromise) {
+    const client = new MongoClient(MONGODB_URI);
+    dbPromise = client.connect().then((c) => c.db(DB_NAME));
   }
+  return dbPromise;
 }
 
-function writeData(data) {
-  ensureFile();
-  const tmpFile = `${DATA_FILE}.tmp`;
-  fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2));
-  fs.renameSync(tmpFile, DATA_FILE);
+function stripMongoId(doc) {
+  if (!doc) return doc;
+  const { _id, ...rest } = doc;
+  return rest;
 }
 
-function listExpenses({ user, from, to } = {}) {
-  const data = readData();
-  return data.expenses.filter((e) => {
-    if (user && e.user !== user) return false;
-    if (from && e.date < from) return false;
-    if (to && e.date > to) return false;
-    return true;
-  }).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id));
+async function nextSequence(name) {
+  const db = await getDb();
+  await db.collection('counters').updateOne({ _id: name }, { $inc: { seq: 1 } }, { upsert: true });
+  const doc = await db.collection('counters').findOne({ _id: name });
+  return doc.seq;
 }
 
-function addExpense({ user, category, amount, date, note }) {
-  const data = readData();
+async function listExpenses({ user, from, to, type } = {}) {
+  const db = await getDb();
+  const query = {};
+  if (user) query.user = user;
+  if (type) query.type = type;
+  if (from || to) {
+    query.date = {};
+    if (from) query.date.$gte = from;
+    if (to) query.date.$lte = to;
+  }
+  const docs = await db.collection('expenses').find(query).sort({ date: -1, id: -1 }).toArray();
+  return docs.map(stripMongoId);
+}
+
+async function addExpense({ user, category, amount, date, note, type }) {
+  const db = await getDb();
+  const id = await nextSequence('expenses');
   const expense = {
-    id: data.nextId,
+    id,
     user,
     category,
     amount,
     date,
     note: note || '',
+    type: type || 'expense',
     createdAt: new Date().toISOString(),
   };
-  data.expenses.push(expense);
-  data.nextId += 1;
-  writeData(data);
-  return expense;
+  await db.collection('expenses').insertOne(expense);
+  return stripMongoId(expense);
 }
 
-function updateExpense(id, fields) {
-  const data = readData();
-  const idx = data.expenses.findIndex((e) => e.id === id);
-  if (idx === -1) return null;
-  data.expenses[idx] = { ...data.expenses[idx], ...fields, id };
-  writeData(data);
-  return data.expenses[idx];
+async function updateExpense(id, fields) {
+  const db = await getDb();
+  const result = await db.collection('expenses').updateOne({ id }, { $set: fields });
+  if (result.matchedCount === 0) return null;
+  const doc = await db.collection('expenses').findOne({ id });
+  return stripMongoId(doc);
 }
 
-function deleteExpense(id) {
-  const data = readData();
-  const idx = data.expenses.findIndex((e) => e.id === id);
-  if (idx === -1) return false;
-  data.expenses.splice(idx, 1);
-  writeData(data);
-  return true;
+async function deleteExpense(id) {
+  const db = await getDb();
+  const result = await db.collection('expenses').deleteOne({ id });
+  return result.deletedCount > 0;
 }
 
-module.exports = { listExpenses, addExpense, updateExpense, deleteExpense };
+async function listCustomCategories(type) {
+  const db = await getDb();
+  const docs = await db.collection('categories').find({ type }).toArray();
+  return docs.map(stripMongoId);
+}
+
+async function addCustomCategory({ type, label, color }) {
+  const db = await getDb();
+  const seq = await nextSequence('categories');
+  const category = { id: `custom_${seq}`, type, label, color, custom: true };
+  await db.collection('categories').insertOne(category);
+  return stripMongoId(category);
+}
+
+module.exports = {
+  listExpenses,
+  addExpense,
+  updateExpense,
+  deleteExpense,
+  listCustomCategories,
+  addCustomCategory,
+};

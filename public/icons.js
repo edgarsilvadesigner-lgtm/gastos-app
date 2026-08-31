@@ -21,6 +21,11 @@ const ICONS = {
   consumiveis: '<path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/><path d="M9 12h6"/>',
   gasoleo_carrinha: '<path d="M4 16V9a2 2 0 0 1 2-2h9l3 4h2v5"/><path d="M4 16h16v1H4z"/><circle cx="8" cy="17.5" r="1.5"/><circle cx="17" cy="17.5" r="1.5"/>',
   luz: '<path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.9v.2h5v-.2c0-.8.4-1.5 1-1.9A6 6 0 0 0 12 3z"/>',
+  salario: '<rect x="2.5" y="6.5" width="19" height="12" rx="2"/><circle cx="12" cy="12.5" r="3"/><path d="M6 6.5V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1.5"/>',
+  presente_recebido: '<path d="M3 9h18v4H3z"/><path d="M5 13h14v8H5z"/><path d="M12 9v12"/><path d="M12 9c-1.5 0-4-1-4-3.2C8 4 9.5 3 11 4c1 .6 1 3 1 5zm0 0c1.5 0 4-1 4-3.2C16 4 14.5 3 13 4c-1 .6-1 3-1 5z"/>',
+  juros: '<path d="M3 9 12 4l9 5"/><path d="M4 9v9M9 9v9M15 9v9M20 9v9"/><path d="M3 20h18"/>',
+  reembolso: '<path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 3v4h4"/><path d="M12 8v4l3 2"/>',
+  outros_rendimentos: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.2 1-1.2 2"/><path d="M12 17h.01"/>',
 };
 
 const ICON_FALLBACK = '<circle cx="12" cy="12" r="9"/>';

@@ -1,4 +1,4 @@
-const CATEGORIES = [
+const EXPENSE_CATEGORIES = [
   { id: 'saude', label: 'Saúde', color: '#e5484d' },
   { id: 'lazer', label: 'Lazer', color: '#6fae7c' },
   { id: 'casa', label: 'Casa', color: '#3b6fd6' },
@@ -22,6 +22,23 @@ const CATEGORIES = [
   { id: 'luz', label: 'Luz', color: '#5cb85c' },
 ];
 
-const CATEGORY_IDS = new Set(CATEGORIES.map((c) => c.id));
+const INCOME_CATEGORIES = [
+  { id: 'salario', label: 'Salário', color: '#3b6fd6' },
+  { id: 'presente_recebido', label: 'Presente', color: '#8fae8b' },
+  { id: 'juros', label: 'Juros', color: '#4fae4f' },
+  { id: 'reembolso', label: 'Reembolso', color: '#4fd1c5' },
+  { id: 'outros_rendimentos', label: 'Outros', color: '#e05a5a' },
+];
 
-module.exports = { CATEGORIES, CATEGORY_IDS };
+const EXPENSE_CATEGORY_IDS = new Set(EXPENSE_CATEGORIES.map((c) => c.id));
+const INCOME_CATEGORY_IDS = new Set(INCOME_CATEGORIES.map((c) => c.id));
+
+function categoriesForType(type) {
+  return type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+}
+
+function categoryIdsForType(type) {
+  return type === 'income' ? INCOME_CATEGORY_IDS : EXPENSE_CATEGORY_IDS;
+}
+
+module.exports = { EXPENSE_CATEGORIES, INCOME_CATEGORIES, categoriesForType, categoryIdsForType };

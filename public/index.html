@@ -62,10 +62,37 @@
           <button data-scope="all" class="chip">Ambos</button>
         </div>
       </div>
+
+      <div class="type-tabs" id="type-tabs">
+        <button data-type="expense" class="ttab active">Despesas</button>
+        <button data-type="income" class="ttab">Rendimentos</button>
+      </div>
+
       <div class="total-block">
-        <span class="muted small">Total gasto</span>
+        <span class="muted small" id="total-label">Total gasto</span>
         <span id="total-amount" class="total-amount">€ 0</span>
       </div>
+
+      <div class="balance-row">
+        <div class="balance-item">
+          <span class="muted small">Rendimentos</span>
+          <span id="balance-income" class="balance-value income">€ 0</span>
+        </div>
+        <div class="balance-item">
+          <span class="muted small">Despesas</span>
+          <span id="balance-expense" class="balance-value expense">€ 0</span>
+        </div>
+        <div class="balance-item">
+          <span class="muted small">Saldo</span>
+          <span id="balance-net" class="balance-value">€ 0</span>
+        </div>
+      </div>
+
+      <button id="export-btn" class="export-btn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        Exportar relatório (Excel)
+      </button>
+
       <div class="period-tabs" id="period-tabs">
         <button data-period="day" class="ptab">Dia</button>
         <button data-period="week" class="ptab">Semana</button>
@@ -133,6 +160,11 @@
       </button>
     </header>
     <form id="expense-form" class="expense-form">
+      <div class="type-quick" id="type-quick">
+        <button type="button" data-type="expense" class="ttab active">Despesa</button>
+        <button type="button" data-type="income" class="ttab">Rendimento</button>
+      </div>
+
       <div class="amount-field">
         <span class="currency">€</span>
         <input id="amount-input" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" required />

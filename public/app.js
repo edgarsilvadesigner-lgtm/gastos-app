@@ -2,19 +2,25 @@
   const USER_LABELS = { edgar: 'Edgar', nelia: 'Nélia' };
   const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   const MONTHS_FULL_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const TOTAL_LABEL = { expense: 'Total gasto', income: 'Total recebido' };
+  const NEW_TITLE = { expense: 'Nova despesa', income: 'Novo rendimento' };
+  const EDIT_TITLE = { expense: 'Editar despesa', income: 'Editar rendimento' };
 
   const state = {
     currentUser: null,
     scope: 'me',
+    viewType: 'expense',
     periodType: 'year',
     anchorDate: new Date(),
     rangeFrom: null,
     rangeTo: null,
-    categories: [],
+    categoriesByType: { expense: [], income: [] },
     selectedCategoryId: null,
+    formType: 'expense',
     dateOffset: 0,
     editingExpenseId: null,
     viewingCategoryId: null,
+    viewingCategoryType: null,
   };
 
   // ---------- helpers ----------
@@ -25,6 +31,10 @@
   function formatMoney(v) {
     const opts = Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
     return '€ ' + v.toLocaleString('pt-PT', opts);
+  }
+  function formatSigned(v) {
+    const sign = v > 0 ? '+' : v < 0 ? '−' : '';
+    return sign + formatMoney(Math.abs(v));
   }
 
   function escapeHtml(str) {
@@ -55,8 +65,28 @@
     $(id).classList.remove('hidden');
   }
 
+  const CUSTOM_COLOR_PALETTE = ['#3b6fd6', '#d1447a', '#4fae4f', '#e8b93f', '#8b6bb5', '#4fd1c5', '#e5484d', '#5a9e5a'];
+
+  function categoryBadgeHtml(cat) {
+    if (cat.custom) {
+      const letter = escapeHtml((cat.label || '?').trim().charAt(0).toUpperCase());
+      return `<span class="cat-icon" style="background:${cat.color}"><span class="cat-initial">${letter}</span></span>`;
+    }
+    return `<span class="cat-icon" style="background:${cat.color}">${categoryIconSvg(cat.id)}</span>`;
+  }
+
   function categoryById(id) {
-    return state.categories.find((c) => c.id === id) || { id, label: id, color: '#8e8e93' };
+    const all = [...state.categoriesByType.expense, ...state.categoriesByType.income];
+    return all.find((c) => c.id === id) || { id, label: id, color: '#8e8e93' };
+  }
+
+  function buildParams({ user, from, to, type }) {
+    const params = new URLSearchParams();
+    if (user) params.set('user', user);
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (type) params.set('type', type);
+    return params;
   }
 
   // ---------- period math ----------
@@ -108,21 +138,44 @@
   }
 
   // ---------- rendering ----------
-  function renderCategoryGrid() {
+  function renderCategoryGrid(type) {
     const grid = $('category-grid');
     grid.innerHTML = '';
-    for (const cat of state.categories) {
+    for (const cat of state.categoriesByType[type]) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'category-option';
       btn.dataset.id = cat.id;
-      btn.innerHTML = `<span class="cat-icon" style="background:${cat.color}">${categoryIconSvg(cat.id)}</span><span class="label">${cat.label}</span>`;
+      btn.innerHTML = `${categoryBadgeHtml(cat)}<span class="label">${escapeHtml(cat.label)}</span>`;
       btn.addEventListener('click', () => {
         state.selectedCategoryId = cat.id;
         grid.querySelectorAll('.category-option').forEach((el) => el.classList.remove('selected'));
         btn.classList.add('selected');
       });
       grid.appendChild(btn);
+    }
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'category-option';
+    addBtn.innerHTML = `<span class="cat-icon cat-icon-add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span><span class="label">Criar</span>`;
+    addBtn.addEventListener('click', () => createCustomCategory(type));
+    grid.appendChild(addBtn);
+  }
+
+  async function createCustomCategory(type) {
+    const label = prompt(type === 'income' ? 'Nome da nova categoria de rendimento:' : 'Nome da nova categoria de despesa:');
+    if (!label || !label.trim()) return;
+    const existingCustomCount = state.categoriesByType[type].filter((c) => c.custom).length;
+    const color = CUSTOM_COLOR_PALETTE[existingCustomCount % CUSTOM_COLOR_PALETTE.length];
+    try {
+      const cat = await api('/api/categories', { method: 'POST', body: JSON.stringify({ type, label: label.trim(), color }) });
+      state.categoriesByType[type] = [...state.categoriesByType[type], cat];
+      renderCategoryGrid(type);
+      state.selectedCategoryId = cat.id;
+      const opt = $('category-grid').querySelector(`[data-id="${cat.id}"]`);
+      if (opt) opt.classList.add('selected');
+    } catch (err) {
+      alert('Não foi possível criar a categoria. Tenta de novo.');
     }
   }
 
@@ -175,7 +228,7 @@
     svg.appendChild(polyline);
   }
 
-  function renderCategoryBreakdown(expenses, total) {
+  function renderCategoryBreakdown(expenses, total, type) {
     const map = {};
     for (const e of expenses) {
       if (!map[e.category]) map[e.category] = { amount: 0, count: 0 };
@@ -196,14 +249,14 @@
       const div = document.createElement('div');
       div.className = 'category-row';
       div.innerHTML = `
-        <span class="cat-icon" style="background:${r.color}">${categoryIconSvg(r.id)}</span>
+        ${categoryBadgeHtml(r)}
         <span class="cat-info">
           <span class="cat-name">${r.label}</span>
           <span class="cat-meta">${r.percent.toFixed(0)}% · ${r.count} ${r.count === 1 ? 'operação' : 'operações'}</span>
         </span>
         <span class="cat-amount">${formatMoney(r.amount)}</span>
       `;
-      div.addEventListener('click', () => openCategoryDetail(r.id));
+      div.addEventListener('click', () => openCategoryDetail(r.id, type));
       container.appendChild(div);
     }
     renderDonut(rows, total);
@@ -213,8 +266,10 @@
     const { from, to, label } = periodRange(state.anchorDate, state.periodType);
     $('period-label').textContent = label;
     document.querySelectorAll('#period-tabs .ptab').forEach((el) => el.classList.toggle('active', el.dataset.period === state.periodType));
+    document.querySelectorAll('#type-tabs .ttab').forEach((el) => el.classList.toggle('active', el.dataset.type === state.viewType));
     $('period-nav').classList.toggle('hidden', state.periodType === 'range');
     $('range-picker').classList.toggle('hidden', state.periodType !== 'range');
+    $('total-label').textContent = TOTAL_LABEL[state.viewType];
 
     if (state.periodType === 'range' && (!state.rangeFrom || !state.rangeTo)) {
       $('donut-wrap').classList.add('hidden');
@@ -223,21 +278,36 @@
       $('empty-state').classList.remove('hidden');
       $('total-amount').textContent = formatMoney(0);
       $('donut-total').textContent = formatMoney(0);
+      $('balance-income').textContent = formatMoney(0);
+      $('balance-expense').textContent = formatMoney(0);
+      $('balance-net').textContent = formatMoney(0);
       return;
     }
     $('donut-wrap').classList.remove('hidden');
 
     const userFilter = state.scope === 'me' ? state.currentUser : undefined;
-    const params = new URLSearchParams();
-    if (userFilter) params.set('user', userFilter);
-    if (from) params.set('from', from);
-    if (to) params.set('to', to);
+    const effectiveFrom = state.periodType === 'range' ? state.rangeFrom : from;
+    const effectiveTo = state.periodType === 'range' ? state.rangeTo : to;
 
-    const expenses = await api(`/api/expenses?${params.toString()}`);
-    const total = expenses.reduce((sum, e) => sum + e.amount, 0);
-    $('total-amount').textContent = formatMoney(total);
-    $('donut-total').textContent = formatMoney(total);
-    renderCategoryBreakdown(expenses, total);
+    const [expenseList, incomeList] = await Promise.all([
+      api(`/api/expenses?${buildParams({ user: userFilter, from: effectiveFrom, to: effectiveTo, type: 'expense' }).toString()}`),
+      api(`/api/expenses?${buildParams({ user: userFilter, from: effectiveFrom, to: effectiveTo, type: 'income' }).toString()}`),
+    ]);
+    const expenseTotal = expenseList.reduce((sum, e) => sum + e.amount, 0);
+    const incomeTotal = incomeList.reduce((sum, e) => sum + e.amount, 0);
+    const netBalance = incomeTotal - expenseTotal;
+
+    const activeList = state.viewType === 'income' ? incomeList : expenseList;
+    const activeTotal = state.viewType === 'income' ? incomeTotal : expenseTotal;
+
+    $('total-amount').textContent = formatMoney(activeTotal);
+    $('donut-total').textContent = formatMoney(activeTotal);
+    $('balance-income').textContent = formatMoney(incomeTotal);
+    $('balance-expense').textContent = formatMoney(expenseTotal);
+    $('balance-net').textContent = formatSigned(netBalance);
+    $('balance-net').classList.toggle('income', netBalance >= 0);
+    $('balance-net').classList.toggle('expense', netBalance < 0);
+    renderCategoryBreakdown(activeList, activeTotal, state.viewType);
 
     if (state.periodType === 'range') {
       renderTrend(null);
@@ -245,27 +315,22 @@
       const buckets = trendBuckets(state.anchorDate, state.periodType, 6);
       const spanFrom = buckets[0].from;
       const spanTo = buckets[buckets.length - 1].to;
-      const spanParams = new URLSearchParams();
-      if (userFilter) spanParams.set('user', userFilter);
-      spanParams.set('from', spanFrom);
-      spanParams.set('to', spanTo);
-      const spanExpenses = await api(`/api/expenses?${spanParams.toString()}`);
-      const totals = buckets.map((b) => spanExpenses.filter((e) => e.date >= b.from && e.date <= b.to).reduce((s, e) => s + e.amount, 0));
+      const spanList = await api(`/api/expenses?${buildParams({ user: userFilter, from: spanFrom, to: spanTo, type: state.viewType }).toString()}`);
+      const totals = buckets.map((b) => spanList.filter((e) => e.date >= b.from && e.date <= b.to).reduce((s, e) => s + e.amount, 0));
       renderTrend(totals);
     }
   }
 
-  async function openCategoryDetail(categoryId) {
+  async function openCategoryDetail(categoryId, type) {
     state.viewingCategoryId = categoryId;
+    state.viewingCategoryType = type;
     const cat = categoryById(categoryId);
     $('category-title').textContent = cat.label;
     const { from, to } = periodRange(state.anchorDate, state.periodType);
     const userFilter = state.scope === 'me' ? state.currentUser : undefined;
-    const params = new URLSearchParams();
-    if (userFilter) params.set('user', userFilter);
-    params.set('from', state.periodType === 'range' ? state.rangeFrom : from);
-    params.set('to', state.periodType === 'range' ? state.rangeTo : to);
-    const expenses = await api(`/api/expenses?${params.toString()}`);
+    const effectiveFrom = state.periodType === 'range' ? state.rangeFrom : from;
+    const effectiveTo = state.periodType === 'range' ? state.rangeTo : to;
+    const expenses = await api(`/api/expenses?${buildParams({ user: userFilter, from: effectiveFrom, to: effectiveTo, type }).toString()}`);
     const filtered = expenses.filter((e) => e.category === categoryId);
     const list = $('category-transactions');
     list.innerHTML = '';
@@ -286,9 +351,9 @@
       row.querySelector('.t-info').addEventListener('click', () => openAddView(e));
       row.querySelector('.t-delete').addEventListener('click', async (ev) => {
         ev.stopPropagation();
-        if (!confirm('Eliminar esta despesa?')) return;
+        if (!confirm('Eliminar este registo?')) return;
         await api(`/api/expenses/${e.id}`, { method: 'DELETE' });
-        openCategoryDetail(categoryId);
+        openCategoryDetail(categoryId, type);
         loadDashboard();
       });
       list.appendChild(row);
@@ -296,13 +361,19 @@
     showView('view-category');
   }
 
+  function setFormType(type) {
+    state.formType = type;
+    document.querySelectorAll('#type-quick .ttab').forEach((c) => c.classList.toggle('active', c.dataset.type === type));
+    renderCategoryGrid(type);
+  }
+
   function openAddView(expense) {
     $('form-error').classList.add('hidden');
-    const grid = $('category-grid');
-    grid.querySelectorAll('.category-option').forEach((el) => el.classList.remove('selected'));
     if (expense) {
       state.editingExpenseId = expense.id;
-      $('add-title').textContent = 'Editar despesa';
+      const type = expense.type || 'expense';
+      setFormType(type);
+      $('add-title').textContent = EDIT_TITLE[type];
       $('add-delete').classList.remove('hidden');
       $('amount-input').value = expense.amount;
       $('note-input').value = expense.note || '';
@@ -310,17 +381,19 @@
       $('date-input').classList.remove('hidden');
       document.querySelectorAll('#date-quick .chip').forEach((c) => c.classList.remove('active'));
       state.selectedCategoryId = expense.category;
-      const opt = grid.querySelector(`[data-id="${expense.category}"]`);
+      const opt = $('category-grid').querySelector(`[data-id="${expense.category}"]`);
       if (opt) opt.classList.add('selected');
     } else {
       state.editingExpenseId = null;
-      $('add-title').textContent = 'Nova despesa';
+      const type = state.viewingCategoryType || state.viewType;
+      setFormType(type);
+      $('add-title').textContent = NEW_TITLE[type];
       $('add-delete').classList.add('hidden');
       $('amount-input').value = '';
       $('note-input').value = '';
       state.selectedCategoryId = state.viewingCategoryId || null;
       if (state.selectedCategoryId) {
-        const opt = grid.querySelector(`[data-id="${state.selectedCategoryId}"]`);
+        const opt = $('category-grid').querySelector(`[data-id="${state.selectedCategoryId}"]`);
         if (opt) opt.classList.add('selected');
       }
       state.dateOffset = 0;
@@ -335,7 +408,6 @@
 
   // ---------- wiring ----------
   async function init() {
-    let categories = [];
     try {
       const session = await api('/api/session');
       if (!session.authenticated) {
@@ -349,9 +421,12 @@
       return;
     }
 
-    categories = await api('/api/categories');
-    state.categories = categories;
-    renderCategoryGrid();
+    const [expenseCats, incomeCats] = await Promise.all([
+      api('/api/categories?type=expense'),
+      api('/api/categories?type=income'),
+    ]);
+    state.categoriesByType = { expense: expenseCats, income: incomeCats };
+    renderCategoryGrid('expense');
 
     const savedUser = sessionStorage.getItem('gastos_user');
     if (savedUser) {
@@ -412,6 +487,13 @@
       loadDashboard();
     });
 
+    $('type-tabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-type]');
+      if (!btn) return;
+      state.viewType = btn.dataset.type;
+      loadDashboard();
+    });
+
     $('period-tabs').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-period]');
       if (!btn) return;
@@ -441,7 +523,20 @@
     $('range-from').addEventListener('change', (e) => { state.rangeFrom = e.target.value; loadDashboard(); });
     $('range-to').addEventListener('change', (e) => { state.rangeTo = e.target.value; loadDashboard(); });
 
-    $('fab-add').addEventListener('click', () => { state.viewingCategoryId = null; openAddView(null); });
+    $('fab-add').addEventListener('click', () => {
+      state.viewingCategoryId = null;
+      state.viewingCategoryType = null;
+      openAddView(null);
+    });
+
+    $('export-btn').addEventListener('click', () => {
+      const { from, to } = periodRange(state.anchorDate, state.periodType);
+      const effectiveFrom = state.periodType === 'range' ? state.rangeFrom : from;
+      const effectiveTo = state.periodType === 'range' ? state.rangeTo : to;
+      const userFilter = state.scope === 'me' ? state.currentUser : undefined;
+      const params = buildParams({ user: userFilter, from: effectiveFrom, to: effectiveTo });
+      window.location.href = `/api/report.xlsx?${params.toString()}`;
+    });
   }
 
   function wireCategoryDetail() {
@@ -451,6 +546,14 @@
   function wireAddForm() {
     $('add-back').addEventListener('click', () => {
       showView(state.viewingCategoryId ? 'view-category' : 'view-dashboard');
+    });
+
+    $('type-quick').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-type]');
+      if (!btn || state.editingExpenseId) return;
+      state.selectedCategoryId = null;
+      setFormType(btn.dataset.type);
+      $('add-title').textContent = NEW_TITLE[btn.dataset.type];
     });
 
     $('date-quick').addEventListener('click', (e) => {
@@ -470,10 +573,10 @@
 
     $('add-delete').addEventListener('click', async () => {
       if (!state.editingExpenseId) return;
-      if (!confirm('Eliminar esta despesa?')) return;
+      if (!confirm('Eliminar este registo?')) return;
       await api(`/api/expenses/${state.editingExpenseId}`, { method: 'DELETE' });
       showView(state.viewingCategoryId ? 'view-category' : 'view-dashboard');
-      if (state.viewingCategoryId) openCategoryDetail(state.viewingCategoryId);
+      if (state.viewingCategoryId) openCategoryDetail(state.viewingCategoryId, state.viewingCategoryType);
       loadDashboard();
     });
 
@@ -491,6 +594,7 @@
         amount: parseFloat($('amount-input').value),
         date: $('date-input').value,
         note: $('note-input').value,
+        type: state.formType,
       };
       try {
         if (state.editingExpenseId) {
@@ -499,7 +603,7 @@
           await api('/api/expenses', { method: 'POST', body: JSON.stringify(payload) });
         }
         showView(state.viewingCategoryId ? 'view-category' : 'view-dashboard');
-        if (state.viewingCategoryId) openCategoryDetail(state.viewingCategoryId);
+        if (state.viewingCategoryId) openCategoryDetail(state.viewingCategoryId, state.viewingCategoryType);
         loadDashboard();
       } catch (err) {
         $('form-error').textContent = 'Não foi possível guardar. Tenta de novo.';
