@@ -102,6 +102,16 @@ input:focus { outline: none; border-color: var(--accent); }
   margin-top: 12px;
 }
 
+.show-password-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  justify-content: center;
+  margin-top: -2px;
+}
+
 /* ---------- User select ---------- */
 .user-cards {
   display: flex;

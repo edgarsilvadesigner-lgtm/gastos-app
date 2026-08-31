@@ -58,7 +58,7 @@ async function categoryLookup(type) {
 
 app.post('/api/login', (req, res) => {
   const { password } = req.body || {};
-  if (typeof password !== 'string' || password !== APP_PASSWORD) {
+  if (typeof password !== 'string' || password.trim() !== APP_PASSWORD) {
     return res.status(401).json({ error: 'invalid_password' });
   }
   res.cookie(COOKIE_NAME, sign('ok'), {

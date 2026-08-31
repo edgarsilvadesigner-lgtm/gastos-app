@@ -442,11 +442,16 @@
   }
 
   function wireLogin() {
+    $('show-password-toggle').addEventListener('change', (e) => {
+      $('login-password').type = e.target.checked ? 'text' : 'password';
+    });
+
     $('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       $('login-error').classList.add('hidden');
       try {
-        await api('/api/login', { method: 'POST', body: JSON.stringify({ password: $('login-password').value }) });
+        const password = $('login-password').value.trim();
+        await api('/api/login', { method: 'POST', body: JSON.stringify({ password }) });
         location.reload();
       } catch (err) {
         $('login-error').textContent = err.status === 401
