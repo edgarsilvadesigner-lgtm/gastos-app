@@ -65,6 +65,11 @@
     $(id).classList.remove('hidden');
   }
 
+  function showFatalError(message) {
+    $('fatal-error-message').textContent = message;
+    showView('view-fatal-error');
+  }
+
   const CUSTOM_COLOR_PALETTE = ['#3b6fd6', '#d1447a', '#4fae4f', '#e8b93f', '#8b6bb5', '#4fd1c5', '#e5484d', '#5a9e5a'];
 
   function categoryBadgeHtml(cat) {
@@ -421,10 +426,17 @@
       return;
     }
 
-    const [expenseCats, incomeCats] = await Promise.all([
-      api('/api/categories?type=expense'),
-      api('/api/categories?type=income'),
-    ]);
+    let expenseCats;
+    let incomeCats;
+    try {
+      [expenseCats, incomeCats] = await Promise.all([
+        api('/api/categories?type=expense'),
+        api('/api/categories?type=income'),
+      ]);
+    } catch (e) {
+      showFatalError('Não foi possível carregar os dados. Verifica a ligação e tenta novamente.');
+      return;
+    }
     state.categoriesByType = { expense: expenseCats, income: incomeCats };
     renderCategoryGrid('expense');
 
@@ -616,6 +628,8 @@
       }
     });
   }
+
+  $('fatal-error-retry').addEventListener('click', () => location.reload());
 
   init();
 })();

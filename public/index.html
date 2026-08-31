@@ -34,6 +34,18 @@
     </div>
   </section>
 
+  <!-- FATAL ERROR -->
+  <section id="view-fatal-error" class="view view-center hidden">
+    <div class="login-card">
+      <div class="login-icon" style="color:var(--danger)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17.5A1.5 1.5 0 0 0 3.8 20h16.4a1.5 1.5 0 0 0 1.3-2.5L13.7 3.9a1.5 1.5 0 0 0-2.6 0Z"/></svg>
+      </div>
+      <h1>Ups</h1>
+      <p id="fatal-error-message" class="muted">Não foi possível carregar os dados.</p>
+      <button id="fatal-error-retry" class="btn-primary" style="margin-top:20px">Tentar novamente</button>
+    </div>
+  </section>
+
   <!-- STEP 2: USER SELECT -->
   <section id="view-user" class="view view-center hidden">
     <div class="user-select">
