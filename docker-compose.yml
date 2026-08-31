@@ -1,0 +1,12 @@
+services:
+  gastos:
+    build: .
+    container_name: gastos-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      APP_PASSWORD: ${APP_PASSWORD:-garlia}
+      SESSION_SECRET: ${SESSION_SECRET}
+    volumes:
+      - ./data:/app/data

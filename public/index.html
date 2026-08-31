@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>Gastos</title>
+<meta name="theme-color" content="#0b0b0d" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- STEP 1: PASSWORD -->
+  <section id="view-login" class="view view-center">
+    <div class="login-card">
+      <div class="login-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      </div>
+      <h1>Gastos</h1>
+      <p class="muted">Introduz a palavra-passe para continuar</p>
+      <form id="login-form">
+        <input id="login-password" type="password" inputmode="text" autocomplete="current-password" placeholder="Palavra-passe" required />
+        <button type="submit" class="btn-primary">Entrar</button>
+      </form>
+      <p id="login-error" class="error hidden">Palavra-passe incorreta.</p>
+    </div>
+  </section>
+
+  <!-- STEP 2: USER SELECT -->
+  <section id="view-user" class="view view-center hidden">
+    <div class="user-select">
+      <h1>Quem é?</h1>
+      <p class="muted">Escolhe o teu perfil</p>
+      <div class="user-cards">
+        <button class="user-card" data-user="edgar">
+          <span class="user-avatar" style="background:#3b6fd6">E</span>
+          <span>Edgar</span>
+        </button>
+        <button class="user-card" data-user="nelia">
+          <span class="user-avatar" style="background:#d1447a">N</span>
+          <span>Nélia</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3: DASHBOARD -->
+  <section id="view-dashboard" class="view hidden">
+    <header class="dashboard-header">
+      <div class="header-top">
+        <button id="switch-user-btn" class="icon-btn" aria-label="Trocar utilizador">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c1.3-3.6 4-5.5 7.5-5.5s6.2 1.9 7.5 5.5"/></svg>
+          <span id="current-user-label">Edgar</span>
+        </button>
+        <div class="who-filter" id="who-filter">
+          <button data-scope="me" class="chip active">Eu</button>
+          <button data-scope="all" class="chip">Ambos</button>
+        </div>
+      </div>
+      <div class="total-block">
+        <span class="muted small">Total gasto</span>
+        <span id="total-amount" class="total-amount">€ 0</span>
+      </div>
+      <div class="period-tabs" id="period-tabs">
+        <button data-period="day" class="ptab">Dia</button>
+        <button data-period="week" class="ptab">Semana</button>
+        <button data-period="month" class="ptab">Mês</button>
+        <button data-period="year" class="ptab active">Ano</button>
+        <button data-period="range" class="ptab">Período</button>
+      </div>
+      <div class="period-nav" id="period-nav">
+        <button id="period-prev" class="icon-btn small">‹</button>
+        <span id="period-label">2026</span>
+        <button id="period-next" class="icon-btn small">›</button>
+      </div>
+      <div id="range-picker" class="range-picker hidden">
+        <input type="date" id="range-from" />
+        <span>—</span>
+        <input type="date" id="range-to" />
+      </div>
+    </header>
+
+    <main class="dashboard-body">
+      <div id="donut-wrap" class="donut-wrap">
+        <svg id="donut" viewBox="0 0 120 120" class="donut"></svg>
+        <div class="donut-center">
+          <span id="donut-total">€ 0</span>
+          <span class="muted small">gasto</span>
+        </div>
+      </div>
+
+      <div id="trend-wrap" class="trend-wrap">
+        <svg id="trend" viewBox="0 0 300 60" preserveAspectRatio="none" class="trend"></svg>
+      </div>
+
+      <div id="category-list" class="category-list"></div>
+      <div id="empty-state" class="empty-state hidden">
+        <p>Ainda não há despesas neste período.</p>
+      </div>
+    </main>
+
+    <button id="fab-add" class="fab" aria-label="Adicionar despesa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </section>
+
+  <!-- CATEGORY DETAIL / TRANSACTIONS -->
+  <section id="view-category" class="view hidden">
+    <header class="add-header">
+      <button id="category-back" class="icon-btn" aria-label="Voltar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <h2 id="category-title">Categoria</h2>
+      <span style="width:40px"></span>
+    </header>
+    <div id="category-transactions" class="transaction-list"></div>
+  </section>
+
+  <!-- STEP 4: ADD EXPENSE -->
+  <section id="view-add" class="view hidden">
+    <header class="add-header">
+      <button id="add-back" class="icon-btn" aria-label="Voltar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <h2 id="add-title">Nova despesa</h2>
+      <button id="add-delete" class="icon-btn danger hidden" aria-label="Eliminar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 7"/></svg>
+      </button>
+    </header>
+    <form id="expense-form" class="expense-form">
+      <div class="amount-field">
+        <span class="currency">€</span>
+        <input id="amount-input" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" required />
+      </div>
+
+      <label class="field-label">Categoria</label>
+      <div id="category-grid" class="category-grid"></div>
+
+      <label class="field-label">Data</label>
+      <div class="date-quick" id="date-quick">
+        <button type="button" data-offset="0" class="chip active">Hoje</button>
+        <button type="button" data-offset="1" class="chip">Ontem</button>
+        <button type="button" data-offset="custom" class="chip">Outra</button>
+      </div>
+      <input id="date-input" type="date" class="date-custom hidden" />
+
+      <label class="field-label" for="note-input">Nota (opcional)</label>
+      <input id="note-input" type="text" maxlength="200" placeholder="Ex: mercado da semana" />
+
+      <p id="form-error" class="error hidden"></p>
+      <button type="submit" class="btn-primary">Guardar</button>
+    </form>
+  </section>
+
+</div>
+
+<script src="icons.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
