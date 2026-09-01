@@ -1,0 +1,110 @@
+====================================================
+ APP "GASTOS" — RESUMO DO PROJETO
+ (Edgar e Nélia — gestão de despesas e rendimentos)
+====================================================
+Última atualização: 31 de agosto de 2026
+
+
+-----------------------------------------
+1. O QUE É A APP
+-----------------------------------------
+App web (funciona no telemóvel, tipo Toshl Finance) para o Edgar e a Nélia
+registarem despesas e rendimentos, verem categorias, saldo, e exportarem
+relatórios em Excel.
+
+Fluxo: palavra-passe → escolher utilizador (Edgar/Nélia) → dashboard →
+adicionar despesa/rendimento.
+
+
+-----------------------------------------
+2. ONDE ESTÁ TUDO
+-----------------------------------------
+• Código no teu Mac:
+  /Users/edgarsilva/Desktop/Digital/app_gastos
+
+• Código no GitHub (backup/histórico):
+  https://github.com/edgarsilvadesigner-lgtm/gastos-app
+
+• App a correr (hosting gratuito):
+  https://gastos-app-ju9q.onrender.com
+  Painel de gestão: https://dashboard.render.com (serviço "gastos-app")
+
+• Atalho no teu domínio:
+  https://www.edgarsilva.com/app  → reencaminha automaticamente para o link do Render
+  (ficheiro estático em Desktop/Digital/redirect-app/index.html, enviado por
+  FTP para public_html/app/ no teu servidor normal)
+
+• Base de dados (guarda despesas e categorias, permanente):
+  MongoDB Atlas — cloud.mongodb.com
+  Cluster: Cluster0 (cluster0.uukuxnm.mongodb.net)
+  Utilizador da base de dados: edgarsilvadesigner_db_user
+
+
+-----------------------------------------
+3. ACESSOS
+-----------------------------------------
+• Palavra-passe da APP (ecrã de login): garlia
+
+• Contas criadas (todas gratuitas):
+  - GitHub: edgarsilvadesigner-lgtm
+  - Render: mesma conta, ligada por GitHub
+  - MongoDB Atlas: conta própria (email que usaste no registo)
+
+• Variáveis de configuração da app, guardadas no Render em
+  "Environment" (nunca em texto simples em lado nenhum):
+  - APP_PASSWORD → garlia
+  - SESSION_SECRET → string aleatória (gerada, não precisas de saber)
+  - MONGODB_URI → liga a app à base de dados (contém a password da BD)
+
+
+-----------------------------------------
+4. COMO FUNCIONA POR DENTRO
+-----------------------------------------
+• Frontend: HTML/CSS/JS simples (sem frameworks), tema escuro, mobile-first.
+• Backend: Node.js + Express (server/index.js).
+• Base de dados: MongoDB (server/store.js) — guarda despesas, rendimentos
+  e categorias personalizadas. Escolhida por ser gratuita e permanente
+  (ao contrário do disco do Render, que se apaga sozinho).
+• Categorias fixas: 21 de despesa (as que já tinhas) + 5 de rendimento
+  (Salário, Presente, Juros, Reembolso, Outros) — definidas em
+  server/categories.js.
+• Categorias personalizadas: podes criar mais categorias na própria app
+  (botão "Criar" na grelha de categorias) — ficam guardadas na base de dados.
+• Exportação Excel: botão "Exportar relatório (Excel)" no dashboard —
+  gera um .xlsx com Resumo, Despesas e Rendimentos, filtrado pelo
+  período e utilizador que estiveres a ver.
+
+
+-----------------------------------------
+5. PONTOS IMPORTANTES A LEMBRAR
+-----------------------------------------
+• Usa sempre uma janela NORMAL do browser (não anónima/privada) —
+  janelas privadas bloqueiam o cookie de sessão e o login parece
+  "não funcionar" (na verdade funciona, só não guarda a sessão).
+
+• Plano gratuito do Render "adormece" a app ao fim de uns minutos sem
+  uso — a primeira vez que abrires depois disso demora ~30-60 segundos
+  a responder. É normal, não é erro.
+
+• A lista principal do dashboard agrupa despesas por CATEGORIA, não
+  mostra cada despesa isolada. Para veres cada despesa/nota individual
+  (ex: "Pokerstars"), toca na categoria correspondente (ex: "Lazer").
+
+• O servidor antigo do teu domínio (www.edgarsilva.com) tem um sistema
+  operativo muito desatualizado (Ubuntu de 2012, sem suporte há anos).
+  Por isso a app não corre lá diretamente — corre no Render, e só o
+  atalho /app é que fica no teu domínio. Vale a pena falares com o
+  hosting (ENTER.PT) sobre atualizar esse servidor, por segurança geral
+  do teu site, independentemente desta app.
+
+
+-----------------------------------------
+6. SE PRECISARES DE AJUDA OUTRA VEZ
+-----------------------------------------
+Basta abrires uma conversa nova comigo e dizeres que é sobre a app
+"Gastos" em Desktop/Digital/app_gastos — eu consigo ver o código e o
+histórico de alterações (git log) para retomar exatamente daqui.
+
+Para veres o que mudou ao longo do tempo, no Terminal:
+  cd /Users/edgarsilva/Desktop/Digital/app_gastos
+  git log --oneline

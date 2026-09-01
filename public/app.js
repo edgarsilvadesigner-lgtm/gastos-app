@@ -5,6 +5,8 @@
   const TOTAL_LABEL = { expense: 'Total gasto', income: 'Total recebido' };
   const NEW_TITLE = { expense: 'Nova despesa', income: 'Novo rendimento' };
   const EDIT_TITLE = { expense: 'Editar despesa', income: 'Editar rendimento' };
+  const EMPTY_MESSAGE = { expense: 'Ainda não há despesas neste período.', income: 'Ainda não há rendimentos neste período.' };
+  const MODAL_COLOR_PALETTE = ['#3b6fd6', '#d1447a', '#4fae4f', '#e8b93f', '#8b6bb5', '#4fd1c5', '#e5484d', '#5a9e5a', '#a8c8a0', '#7ec6e8', '#6fae7c', '#c94f4f'];
 
   const state = {
     currentUser: null,
@@ -70,16 +72,6 @@
     showView('view-fatal-error');
   }
 
-  const CUSTOM_COLOR_PALETTE = ['#3b6fd6', '#d1447a', '#4fae4f', '#e8b93f', '#8b6bb5', '#4fd1c5', '#e5484d', '#5a9e5a'];
-
-  function categoryBadgeHtml(cat) {
-    if (cat.custom) {
-      const letter = escapeHtml((cat.label || '?').trim().charAt(0).toUpperCase());
-      return `<span class="cat-icon" style="background:${cat.color}"><span class="cat-initial">${letter}</span></span>`;
-    }
-    return `<span class="cat-icon" style="background:${cat.color}">${categoryIconSvg(cat.id)}</span>`;
-  }
-
   function categoryById(id) {
     const all = [...state.categoriesByType.expense, ...state.categoriesByType.income];
     return all.find((c) => c.id === id) || { id, label: id, color: '#8e8e93' };
@@ -92,6 +84,123 @@
     if (to) params.set('to', to);
     if (type) params.set('type', type);
     return params;
+  }
+
+  // ---------- toasts ----------
+  function showToast(message, type = 'success') {
+    const root = $('toast-root');
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.textContent = message;
+    root.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('toast-leaving');
+      setTimeout(() => el.remove(), 220);
+    }, 2200);
+  }
+
+  // ---------- modals ----------
+  function showConfirm(message, confirmLabel) {
+    return new Promise((resolve) => {
+      $('modal-confirm-message').textContent = message;
+      $('modal-confirm-ok').textContent = confirmLabel || 'Eliminar';
+      $('modal-category').classList.add('hidden');
+      $('modal-confirm').classList.remove('hidden');
+      $('modal-overlay').classList.remove('hidden');
+
+      const okBtn = $('modal-confirm-ok');
+      const cancelBtn = $('modal-confirm-cancel');
+      const overlay = $('modal-overlay');
+
+      function cleanup(result) {
+        overlay.classList.add('hidden');
+        $('modal-confirm').classList.add('hidden');
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        overlay.removeEventListener('click', onOverlay);
+        resolve(result);
+      }
+      function onOk() { cleanup(true); }
+      function onCancel() { cleanup(false); }
+      function onOverlay(e) { if (e.target === overlay) cleanup(false); }
+
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      overlay.addEventListener('click', onOverlay);
+    });
+  }
+
+  function showCategoryModal(type) {
+    return new Promise((resolve) => {
+      const grid = $('modal-category-colors');
+      grid.innerHTML = '';
+      let selectedColor = MODAL_COLOR_PALETTE[0];
+      MODAL_COLOR_PALETTE.forEach((color, i) => {
+        const swatch = document.createElement('button');
+        swatch.type = 'button';
+        swatch.className = 'modal-color-swatch' + (i === 0 ? ' selected' : '');
+        swatch.style.background = color;
+        swatch.addEventListener('click', () => {
+          selectedColor = color;
+          grid.querySelectorAll('.modal-color-swatch').forEach((s) => s.classList.remove('selected'));
+          swatch.classList.add('selected');
+        });
+        grid.appendChild(swatch);
+      });
+      $('modal-category-label').value = '';
+      $('modal-confirm').classList.add('hidden');
+      $('modal-category').classList.remove('hidden');
+      $('modal-overlay').classList.remove('hidden');
+      setTimeout(() => $('modal-category-label').focus(), 60);
+
+      const createBtn = $('modal-category-create');
+      const cancelBtn = $('modal-category-cancel');
+      const overlay = $('modal-overlay');
+      const labelInput = $('modal-category-label');
+
+      function cleanup(result) {
+        overlay.classList.add('hidden');
+        $('modal-category').classList.add('hidden');
+        createBtn.removeEventListener('click', onCreate);
+        cancelBtn.removeEventListener('click', onCancel);
+        overlay.removeEventListener('click', onOverlay);
+        labelInput.removeEventListener('keydown', onKeydown);
+        resolve(result);
+      }
+      function onCreate() {
+        const label = labelInput.value.trim();
+        if (!label) { labelInput.focus(); return; }
+        cleanup({ label, color: selectedColor });
+      }
+      function onCancel() { cleanup(null); }
+      function onOverlay(e) { if (e.target === overlay) cleanup(null); }
+      function onKeydown(e) { if (e.key === 'Enter') { e.preventDefault(); onCreate(); } }
+
+      createBtn.addEventListener('click', onCreate);
+      cancelBtn.addEventListener('click', onCancel);
+      overlay.addEventListener('click', onOverlay);
+      labelInput.addEventListener('keydown', onKeydown);
+    });
+  }
+
+  // ---------- animated numbers ----------
+  function animateNumber(el, from, to, formatFn, duration = 500) {
+    const start = performance.now();
+    function tick(now) {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = from + (to - from) * eased;
+      el.textContent = formatFn(current);
+      if (progress < 1) requestAnimationFrame(tick);
+      else el.textContent = formatFn(to);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function setAnimatedMoney(el, newValue, formatFn) {
+    const prev = parseFloat(el.dataset.value || '0');
+    el.dataset.value = String(newValue);
+    animateNumber(el, prev, newValue, formatFn || formatMoney);
   }
 
   // ---------- period math ----------
@@ -143,6 +252,16 @@
   }
 
   // ---------- rendering ----------
+  const CUSTOM_COLOR_PALETTE = MODAL_COLOR_PALETTE;
+
+  function categoryBadgeHtml(cat) {
+    if (cat.custom) {
+      const letter = escapeHtml((cat.label || '?').trim().charAt(0).toUpperCase());
+      return `<span class="cat-icon" style="background:${cat.color}"><span class="cat-initial">${letter}</span></span>`;
+    }
+    return `<span class="cat-icon" style="background:${cat.color}">${categoryIconSvg(cat.id)}</span>`;
+  }
+
   function renderCategoryGrid(type) {
     const grid = $('category-grid');
     grid.innerHTML = '';
@@ -168,19 +287,18 @@
   }
 
   async function createCustomCategory(type) {
-    const label = prompt(type === 'income' ? 'Nome da nova categoria de rendimento:' : 'Nome da nova categoria de despesa:');
-    if (!label || !label.trim()) return;
-    const existingCustomCount = state.categoriesByType[type].filter((c) => c.custom).length;
-    const color = CUSTOM_COLOR_PALETTE[existingCustomCount % CUSTOM_COLOR_PALETTE.length];
+    const result = await showCategoryModal(type);
+    if (!result) return;
     try {
-      const cat = await api('/api/categories', { method: 'POST', body: JSON.stringify({ type, label: label.trim(), color }) });
+      const cat = await api('/api/categories', { method: 'POST', body: JSON.stringify({ type, label: result.label, color: result.color }) });
       state.categoriesByType[type] = [...state.categoriesByType[type], cat];
       renderCategoryGrid(type);
       state.selectedCategoryId = cat.id;
       const opt = $('category-grid').querySelector(`[data-id="${cat.id}"]`);
       if (opt) opt.classList.add('selected');
+      showToast('Categoria criada');
     } catch (err) {
-      alert('Não foi possível criar a categoria. Tenta de novo.');
+      showToast('Não foi possível criar a categoria.', 'error');
     }
   }
 
@@ -195,6 +313,7 @@
       svg.appendChild(bg);
       return;
     }
+    const pending = [];
     let offset = 0;
     for (const row of rows) {
       const len = (row.amount / total) * circumference;
@@ -203,11 +322,17 @@
       circle.setAttribute('fill', 'none');
       circle.setAttribute('stroke', row.color);
       circle.setAttribute('stroke-width', '12');
-      circle.setAttribute('stroke-dasharray', `${len} ${circumference - len}`);
+      circle.setAttribute('stroke-dasharray', `0 ${circumference}`);
       circle.setAttribute('stroke-dashoffset', String(-offset));
       svg.appendChild(circle);
+      pending.push({ circle, len });
       offset += len;
     }
+    requestAnimationFrame(() => {
+      for (const { circle, len } of pending) {
+        circle.setAttribute('stroke-dasharray', `${len} ${circumference - len}`);
+      }
+    });
   }
 
   function renderTrend(totals) {
@@ -249,21 +374,23 @@
 
     const container = $('category-list');
     container.innerHTML = '';
+    $('empty-state-message').textContent = EMPTY_MESSAGE[type];
     $('empty-state').classList.toggle('hidden', rows.length > 0);
-    for (const r of rows) {
+    rows.forEach((r, i) => {
       const div = document.createElement('div');
       div.className = 'category-row';
+      div.style.animation = `fadeSlideIn 0.3s cubic-bezier(0.16,1,0.3,1) ${i * 0.03}s both`;
       div.innerHTML = `
         ${categoryBadgeHtml(r)}
         <span class="cat-info">
-          <span class="cat-name">${r.label}</span>
+          <span class="cat-name">${escapeHtml(r.label)}</span>
           <span class="cat-meta">${r.percent.toFixed(0)}% · ${r.count} ${r.count === 1 ? 'operação' : 'operações'}</span>
         </span>
         <span class="cat-amount">${formatMoney(r.amount)}</span>
       `;
       div.addEventListener('click', () => openCategoryDetail(r.id, type));
       container.appendChild(div);
-    }
+    });
     renderDonut(rows, total);
   }
 
@@ -280,12 +407,10 @@
       $('donut-wrap').classList.add('hidden');
       $('trend-wrap').classList.add('hidden');
       $('category-list').innerHTML = '';
+      $('empty-state-message').textContent = EMPTY_MESSAGE[state.viewType];
       $('empty-state').classList.remove('hidden');
-      $('total-amount').textContent = formatMoney(0);
-      $('donut-total').textContent = formatMoney(0);
-      $('balance-income').textContent = formatMoney(0);
-      $('balance-expense').textContent = formatMoney(0);
-      $('balance-net').textContent = formatMoney(0);
+      setAnimatedMoney($('total-amount'), 0);
+      setAnimatedMoney($('donut-total'), 0);
       return;
     }
     $('donut-wrap').classList.remove('hidden');
@@ -305,11 +430,11 @@
     const activeList = state.viewType === 'income' ? incomeList : expenseList;
     const activeTotal = state.viewType === 'income' ? incomeTotal : expenseTotal;
 
-    $('total-amount').textContent = formatMoney(activeTotal);
-    $('donut-total').textContent = formatMoney(activeTotal);
-    $('balance-income').textContent = formatMoney(incomeTotal);
-    $('balance-expense').textContent = formatMoney(expenseTotal);
-    $('balance-net').textContent = formatSigned(netBalance);
+    setAnimatedMoney($('total-amount'), activeTotal);
+    setAnimatedMoney($('donut-total'), activeTotal);
+    setAnimatedMoney($('balance-income'), incomeTotal);
+    setAnimatedMoney($('balance-expense'), expenseTotal);
+    setAnimatedMoney($('balance-net'), netBalance, formatSigned);
     $('balance-net').classList.toggle('income', netBalance >= 0);
     $('balance-net').classList.toggle('expense', netBalance < 0);
     renderCategoryBreakdown(activeList, activeTotal, state.viewType);
@@ -326,6 +451,42 @@
     }
   }
 
+  function attachSwipeToDelete(rowEl, onDelete) {
+    let startX = 0;
+    let currentX = 0;
+    let dragging = false;
+    const threshold = -76;
+
+    rowEl.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.t-delete')) return;
+      dragging = true;
+      startX = e.clientX;
+      rowEl.classList.remove('snapping');
+      rowEl.classList.add('dragging');
+      try { rowEl.setPointerCapture(e.pointerId); } catch (err) { /* noop */ }
+    });
+    rowEl.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      currentX = Math.min(0, e.clientX - startX);
+      rowEl.style.transform = `translateX(${currentX}px)`;
+    });
+    function endDrag() {
+      if (!dragging) return;
+      dragging = false;
+      rowEl.classList.remove('dragging');
+      rowEl.classList.add('snapping');
+      if (currentX < threshold) {
+        rowEl.style.transform = 'translateX(-100%)';
+        setTimeout(onDelete, 180);
+      } else {
+        rowEl.style.transform = 'translateX(0)';
+      }
+      currentX = 0;
+    }
+    rowEl.addEventListener('pointerup', endDrag);
+    rowEl.addEventListener('pointercancel', endDrag);
+  }
+
   async function openCategoryDetail(categoryId, type) {
     state.viewingCategoryId = categoryId;
     state.viewingCategoryType = type;
@@ -339,7 +500,15 @@
     const filtered = expenses.filter((e) => e.category === categoryId);
     const list = $('category-transactions');
     list.innerHTML = '';
-    for (const e of filtered) {
+    filtered.forEach((e, i) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'swipe-row';
+      wrapper.style.animation = `fadeSlideIn 0.3s cubic-bezier(0.16,1,0.3,1) ${i * 0.03}s both`;
+
+      const bg = document.createElement('div');
+      bg.className = 'swipe-bg';
+      bg.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 7"/></svg>';
+
       const row = document.createElement('div');
       row.className = 'transaction-row';
       const d = parseDate(e.date);
@@ -353,16 +522,27 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 7"/></svg>
         </button>
       `;
+
+      async function doDelete() {
+        await api(`/api/expenses/${e.id}`, { method: 'DELETE' });
+        showToast('Eliminado');
+        openCategoryDetail(categoryId, type);
+        loadDashboard();
+      }
+
       row.querySelector('.t-info').addEventListener('click', () => openAddView(e));
       row.querySelector('.t-delete').addEventListener('click', async (ev) => {
         ev.stopPropagation();
-        if (!confirm('Eliminar este registo?')) return;
-        await api(`/api/expenses/${e.id}`, { method: 'DELETE' });
-        openCategoryDetail(categoryId, type);
-        loadDashboard();
+        const ok = await showConfirm('Eliminar este registo?');
+        if (!ok) return;
+        doDelete();
       });
-      list.appendChild(row);
-    }
+      attachSwipeToDelete(row, doDelete);
+
+      wrapper.appendChild(bg);
+      wrapper.appendChild(row);
+      list.appendChild(wrapper);
+    });
     showView('view-category');
   }
 
@@ -590,8 +770,10 @@
 
     $('add-delete').addEventListener('click', async () => {
       if (!state.editingExpenseId) return;
-      if (!confirm('Eliminar este registo?')) return;
+      const ok = await showConfirm('Eliminar este registo?');
+      if (!ok) return;
       await api(`/api/expenses/${state.editingExpenseId}`, { method: 'DELETE' });
+      showToast('Eliminado');
       showView(state.viewingCategoryId ? 'view-category' : 'view-dashboard');
       if (state.viewingCategoryId) openCategoryDetail(state.viewingCategoryId, state.viewingCategoryType);
       loadDashboard();
@@ -613,12 +795,14 @@
         note: $('note-input').value,
         type: state.formType,
       };
+      const isEdit = Boolean(state.editingExpenseId);
       try {
-        if (state.editingExpenseId) {
+        if (isEdit) {
           await api(`/api/expenses/${state.editingExpenseId}`, { method: 'PUT', body: JSON.stringify(payload) });
         } else {
           await api('/api/expenses', { method: 'POST', body: JSON.stringify(payload) });
         }
+        showToast(isEdit ? 'Atualizado' : 'Guardado');
         showView(state.viewingCategoryId ? 'view-category' : 'view-dashboard');
         if (state.viewingCategoryId) openCategoryDetail(state.viewingCategoryId, state.viewingCategoryType);
         loadDashboard();
