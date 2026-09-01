@@ -4,7 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
 <title>Gastos</title>
-<meta name="theme-color" content="#0b0b0d" />
+<meta name="color-scheme" content="light dark" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f2f2f5" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0b0d" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -15,8 +17,13 @@
 
 <div id="app">
 
+  <!-- SPLASH -->
+  <section id="view-splash" class="view view-center">
+    <div class="splash-spinner"></div>
+  </section>
+
   <!-- STEP 1: PASSWORD -->
-  <section id="view-login" class="view view-center">
+  <section id="view-login" class="view view-center hidden">
     <div class="login-card">
       <div class="login-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
@@ -128,12 +135,25 @@
     </header>
 
     <main class="dashboard-body">
+      <div class="chart-toggle" id="chart-toggle">
+        <button type="button" data-mode="donut" class="chart-toggle-btn active" aria-label="Gráfico circular">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 8 8"/></svg>
+        </button>
+        <button type="button" data-mode="bar" class="chart-toggle-btn" aria-label="Gráfico de barras">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M12 20V4M20 20v-7"/></svg>
+        </button>
+      </div>
+
       <div id="donut-wrap" class="donut-wrap">
         <svg id="donut" viewBox="0 0 120 120" class="donut"></svg>
         <div class="donut-center">
           <span id="donut-total">€ 0</span>
           <span class="muted small">gasto</span>
         </div>
+      </div>
+
+      <div id="bar-chart-wrap" class="bar-chart-wrap hidden">
+        <div id="bar-chart" class="bar-chart"></div>
       </div>
 
       <div id="trend-wrap" class="trend-wrap">

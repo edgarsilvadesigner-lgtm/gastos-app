@@ -1,15 +1,34 @@
 :root {
-  --bg: #000000;
-  --bg-elevated: #17171a;
-  --bg-card: #1c1c1f;
-  --border: #2a2a2e;
-  --text: #f5f5f7;
-  --text-muted: #8e8e93;
+  --bg: #f2f2f5;
+  --bg-elevated: #ffffff;
+  --bg-card: #ffffff;
+  --border: #e3e3e8;
+  --text: #17171a;
+  --text-muted: #6c6c72;
   --accent: #3b6fd6;
-  --danger: #e5484d;
+  --danger: #d92c2c;
+  --income: #1e8e3e;
+  --shadow: rgba(20, 20, 30, 0.08);
   --radius: 16px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --bg-elevated: #17171a;
+    --bg-card: #1c1c1f;
+    --border: #2a2a2e;
+    --text: #f5f5f7;
+    --text-muted: #8e8e93;
+    --accent: #3b6fd6;
+    --danger: #e5484d;
+    --income: #34a853;
+    --shadow: rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -48,6 +67,16 @@ html, body {
   align-items: center;
   justify-content: center;
   padding: 24px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.splash-spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 0.7s linear infinite;
 }
 
 .muted { color: var(--text-muted); }
@@ -132,6 +161,7 @@ input:focus { outline: none; border-color: var(--accent); }
   margin-top: 28px;
 }
 .user-card {
+  box-shadow: 0 1px 3px var(--shadow);
   flex: 1;
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -225,7 +255,7 @@ input:focus { outline: none; border-color: var(--accent); }
   cursor: pointer;
 }
 .ttab.active { background: var(--accent); color: white; }
-.ttab.active[data-type="income"] { background: #34a853; }
+.ttab.active[data-type="income"] { background: var(--income); }
 
 .type-quick {
   display: flex;
@@ -245,6 +275,7 @@ input:focus { outline: none; border-color: var(--accent); }
   margin-bottom: 18px;
 }
 .balance-item {
+  box-shadow: 0 1px 3px var(--shadow);
   flex: 1;
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -257,6 +288,7 @@ input:focus { outline: none; border-color: var(--accent); }
 .balance-value { font-size: 14px; font-weight: 700; white-space: nowrap; }
 
 .export-btn {
+  box-shadow: 0 1px 3px var(--shadow);
   width: 100%;
   display: flex;
   align-items: center;
@@ -273,8 +305,8 @@ input:focus { outline: none; border-color: var(--accent); }
   margin-bottom: 4px;
 }
 .export-btn svg { width: 16px; height: 16px; }
-.balance-value.income { color: #34a853; }
-.balance-value.expense { color: #e5484d; }
+.balance-value.income { color: var(--income); }
+.balance-value.expense { color: var(--danger); }
 
 .period-tabs {
   display: flex;
@@ -317,6 +349,44 @@ input:focus { outline: none; border-color: var(--accent); }
   padding: 20px 20px 100px;
 }
 
+.chart-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.chart-toggle-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 10px;
+  padding: 7px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px var(--shadow);
+}
+.chart-toggle-btn svg { width: 16px; height: 16px; display: block; }
+.chart-toggle-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+.bar-chart-wrap { margin: 8px 0 22px; }
+.bar-chart { display: flex; flex-direction: column; gap: 14px; }
+.bar-item { display: flex; flex-direction: column; gap: 6px; }
+.bar-item-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; }
+.bar-item-label { font-weight: 600; }
+.bar-item-amount { font-weight: 700; color: var(--text); }
+.bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  width: 0%;
+  transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .donut-wrap {
   position: relative;
   width: 180px;
@@ -340,6 +410,7 @@ input:focus { outline: none; border-color: var(--accent); }
 .category-list { display: flex; flex-direction: column; gap: 10px; }
 
 .category-row {
+  box-shadow: 0 1px 3px var(--shadow);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -463,6 +534,7 @@ input:focus { outline: none; border-color: var(--accent); }
   gap: 10px;
 }
 .transaction-row {
+  box-shadow: 0 1px 3px var(--shadow);
   display: flex;
   align-items: center;
   gap: 12px;

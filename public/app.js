@@ -23,6 +23,9 @@
     editingExpenseId: null,
     viewingCategoryId: null,
     viewingCategoryType: null,
+    chartMode: localStorage.getItem('gastos_chart_mode') || 'donut',
+    lastRows: [],
+    lastTotal: 0,
   };
 
   // ---------- helpers ----------
@@ -302,6 +305,40 @@
     }
   }
 
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function renderChart(rows, total) {
+    state.lastRows = rows;
+    state.lastTotal = total;
+    if (state.chartMode === 'bar') renderBarChart(rows, total);
+    else renderDonut(rows, total);
+  }
+
+  function renderBarChart(rows, total) {
+    const container = $('bar-chart');
+    container.innerHTML = '';
+    const max = rows.length ? rows[0].amount : 0;
+    rows.forEach((r, i) => {
+      const item = document.createElement('div');
+      item.className = 'bar-item';
+      item.style.animation = `fadeSlideIn 0.3s cubic-bezier(0.16,1,0.3,1) ${i * 0.03}s both`;
+      item.innerHTML = `
+        <div class="bar-item-top">
+          <span class="bar-item-label">${escapeHtml(r.label)}</span>
+          <span class="bar-item-amount">${formatMoney(r.amount)}</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="background:${r.color}"></div></div>
+      `;
+      container.appendChild(item);
+      const fill = item.querySelector('.bar-fill');
+      requestAnimationFrame(() => {
+        fill.style.width = `${max > 0 ? (r.amount / max) * 100 : 0}%`;
+      });
+    });
+  }
+
   function renderDonut(rows, total) {
     const svg = $('donut');
     svg.innerHTML = '';
@@ -309,7 +346,7 @@
     if (total <= 0) {
       const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       bg.setAttribute('cx', cx); bg.setAttribute('cy', cy); bg.setAttribute('r', r);
-      bg.setAttribute('fill', 'none'); bg.setAttribute('stroke', '#2a2a2e'); bg.setAttribute('stroke-width', '12');
+      bg.setAttribute('fill', 'none'); bg.setAttribute('stroke', cssVar('--border') || '#2a2a2e'); bg.setAttribute('stroke-width', '12');
       svg.appendChild(bg);
       return;
     }
@@ -391,7 +428,7 @@
       div.addEventListener('click', () => openCategoryDetail(r.id, type));
       container.appendChild(div);
     });
-    renderDonut(rows, total);
+    renderChart(rows, total);
   }
 
   async function loadDashboard() {
@@ -405,6 +442,7 @@
 
     if (state.periodType === 'range' && (!state.rangeFrom || !state.rangeTo)) {
       $('donut-wrap').classList.add('hidden');
+      $('bar-chart-wrap').classList.add('hidden');
       $('trend-wrap').classList.add('hidden');
       $('category-list').innerHTML = '';
       $('empty-state-message').textContent = EMPTY_MESSAGE[state.viewType];
@@ -413,7 +451,8 @@
       setAnimatedMoney($('donut-total'), 0);
       return;
     }
-    $('donut-wrap').classList.remove('hidden');
+    $('donut-wrap').classList.toggle('hidden', state.chartMode !== 'donut');
+    $('bar-chart-wrap').classList.toggle('hidden', state.chartMode !== 'bar');
 
     const userFilter = state.scope === 'me' ? state.currentUser : undefined;
     const effectiveFrom = state.periodType === 'range' ? state.rangeFrom : from;
@@ -689,6 +728,20 @@
       if (!btn) return;
       state.viewType = btn.dataset.type;
       loadDashboard();
+    });
+
+    document.querySelectorAll('#chart-toggle .chart-toggle-btn').forEach((b) => b.classList.toggle('active', b.dataset.mode === state.chartMode));
+    $('donut-wrap').classList.toggle('hidden', state.chartMode !== 'donut');
+    $('bar-chart-wrap').classList.toggle('hidden', state.chartMode !== 'bar');
+    $('chart-toggle').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-mode]');
+      if (!btn) return;
+      state.chartMode = btn.dataset.mode;
+      localStorage.setItem('gastos_chart_mode', state.chartMode);
+      document.querySelectorAll('#chart-toggle .chart-toggle-btn').forEach((b) => b.classList.toggle('active', b === btn));
+      $('donut-wrap').classList.toggle('hidden', state.chartMode !== 'donut');
+      $('bar-chart-wrap').classList.toggle('hidden', state.chartMode !== 'bar');
+      renderChart(state.lastRows, state.lastTotal);
     });
 
     $('period-tabs').addEventListener('click', (e) => {
