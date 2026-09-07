@@ -24,6 +24,7 @@
     viewingCategoryId: null,
     viewingCategoryType: null,
     chartMode: localStorage.getItem('gastos_chart_mode') || 'donut',
+    listMode: localStorage.getItem('gastos_list_mode') || 'groups',
     lastRows: [],
     lastTotal: 0,
   };
@@ -395,24 +396,24 @@
     svg.appendChild(polyline);
   }
 
-  function renderCategoryBreakdown(expenses, total, type) {
+  function groupByCategory(expenses, total) {
     const map = {};
     for (const e of expenses) {
       if (!map[e.category]) map[e.category] = { amount: 0, count: 0 };
       map[e.category].amount += e.amount;
       map[e.category].count += 1;
     }
-    const rows = Object.entries(map).map(([catId, v]) => ({
+    return Object.entries(map).map(([catId, v]) => ({
       ...categoryById(catId),
       amount: v.amount,
       count: v.count,
       percent: total > 0 ? (v.amount / total) * 100 : 0,
     })).sort((a, b) => b.amount - a.amount);
+  }
 
+  function renderGroupedList(rows, type) {
     const container = $('category-list');
     container.innerHTML = '';
-    $('empty-state-message').textContent = EMPTY_MESSAGE[type];
-    $('empty-state').classList.toggle('hidden', rows.length > 0);
     rows.forEach((r, i) => {
       const div = document.createElement('div');
       div.className = 'category-row';
@@ -428,6 +429,54 @@
       div.addEventListener('click', () => openCategoryDetail(r.id, type));
       container.appendChild(div);
     });
+  }
+
+  function renderFlatList(expenses, type) {
+    const container = $('category-list');
+    container.innerHTML = '';
+    const sorted = [...expenses].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id));
+    sorted.forEach((e, i) => {
+      const cat = categoryById(e.category);
+      const d = parseDate(e.date);
+      const wrapper = document.createElement('div');
+      wrapper.className = 'swipe-row';
+      wrapper.style.animation = `fadeSlideIn 0.3s cubic-bezier(0.16,1,0.3,1) ${i * 0.02}s both`;
+
+      const bg = document.createElement('div');
+      bg.className = 'swipe-bg';
+      bg.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 7"/></svg>';
+
+      const row = document.createElement('div');
+      row.className = 'category-row';
+      row.innerHTML = `
+        ${categoryBadgeHtml(cat)}
+        <span class="cat-info">
+          <span class="cat-name">${escapeHtml(e.note || cat.label)}</span>
+          <span class="cat-meta">${escapeHtml(cat.label)} · ${d.getDate()} ${MONTHS_PT[d.getMonth()]} · ${USER_LABELS[e.user]}</span>
+        </span>
+        <span class="cat-amount">${formatMoney(e.amount)}</span>
+      `;
+      row.addEventListener('click', () => openAddView(e));
+      attachSwipeToDelete(row, async () => {
+        await api(`/api/expenses/${e.id}`, { method: 'DELETE' });
+        showToast('Eliminado');
+        loadDashboard();
+      });
+      wrapper.appendChild(bg);
+      wrapper.appendChild(row);
+      container.appendChild(wrapper);
+    });
+  }
+
+  function renderCategoryBreakdown(expenses, total, type) {
+    const rows = groupByCategory(expenses, total);
+    $('empty-state-message').textContent = EMPTY_MESSAGE[type];
+    $('empty-state').classList.toggle('hidden', expenses.length > 0);
+    if (state.listMode === 'date') {
+      renderFlatList(expenses, type);
+    } else {
+      renderGroupedList(rows, type);
+    }
     renderChart(rows, total);
   }
 
@@ -476,6 +525,7 @@
     setAnimatedMoney($('balance-net'), netBalance, formatSigned);
     $('balance-net').classList.toggle('income', netBalance >= 0);
     $('balance-net').classList.toggle('expense', netBalance < 0);
+    state.lastExpenses = activeList;
     renderCategoryBreakdown(activeList, activeTotal, state.viewType);
 
     if (state.periodType === 'range') {
@@ -742,6 +792,20 @@
       $('donut-wrap').classList.toggle('hidden', state.chartMode !== 'donut');
       $('bar-chart-wrap').classList.toggle('hidden', state.chartMode !== 'bar');
       renderChart(state.lastRows, state.lastTotal);
+    });
+
+    document.querySelectorAll('#list-mode-toggle .chip').forEach((b) => b.classList.toggle('active', b.dataset.mode === state.listMode));
+    $('list-mode-toggle').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-mode]');
+      if (!btn) return;
+      state.listMode = btn.dataset.mode;
+      localStorage.setItem('gastos_list_mode', state.listMode);
+      document.querySelectorAll('#list-mode-toggle .chip').forEach((b) => b.classList.toggle('active', b === btn));
+      if (state.listMode === 'date') {
+        renderFlatList(state.lastExpenses || [], state.viewType);
+      } else {
+        renderGroupedList(state.lastRows || [], state.viewType);
+      }
     });
 
     $('period-tabs').addEventListener('click', (e) => {

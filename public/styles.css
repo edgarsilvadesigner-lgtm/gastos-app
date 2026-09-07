@@ -349,6 +349,19 @@ input:focus { outline: none; border-color: var(--accent); }
   padding: 20px 20px 100px;
 }
 
+.list-mode-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  background: var(--bg-card);
+  border-radius: 999px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px var(--shadow);
+  width: fit-content;
+  margin: 0 auto 12px;
+}
+
 .chart-toggle {
   display: flex;
   justify-content: center;
@@ -575,14 +588,17 @@ input:focus { outline: none; border-color: var(--accent); }
   color: white;
 }
 .swipe-bg svg { width: 20px; height: 20px; }
-.swipe-row .transaction-row {
+.swipe-row .transaction-row,
+.swipe-row .category-row {
   position: relative;
   background: var(--bg-card);
   touch-action: pan-y;
   will-change: transform;
 }
-.swipe-row .transaction-row.dragging { transition: none; }
-.swipe-row .transaction-row.snapping { transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+.swipe-row .transaction-row.dragging,
+.swipe-row .category-row.dragging { transition: none; }
+.swipe-row .transaction-row.snapping,
+.swipe-row .category-row.snapping { transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
 
 /* ---------- Micro-interactions ---------- */
 button, .category-row, .transaction-row, .user-card, .fab {
