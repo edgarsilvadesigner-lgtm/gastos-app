@@ -106,10 +106,12 @@
   }
 
   // ---------- modals ----------
-  function showConfirm(message, confirmLabel) {
+  function showConfirm(message, confirmLabel, primary) {
     return new Promise((resolve) => {
       $('modal-confirm-message').textContent = message;
       $('modal-confirm-ok').textContent = confirmLabel || 'Eliminar';
+      $('modal-confirm-ok').classList.toggle('modal-btn-danger', !primary);
+      $('modal-confirm-ok').classList.toggle('modal-btn-primary', Boolean(primary));
       $('modal-category').classList.add('hidden');
       $('modal-confirm').classList.remove('hidden');
       $('modal-overlay').classList.remove('hidden');
@@ -521,7 +523,9 @@
       api(`/api/expenses?${buildParams({ user: userFilter, from: effectiveFrom, to: effectiveTo, type: 'income' }).toString()}`),
     ]);
     const offCount = [...expenseList, ...incomeList].filter((e) => e.included === false).length;
+    state.offCount = offCount;
     $('excluded-count').textContent = offCount ? `${offCount} desligado${offCount === 1 ? '' : 's'}` : '';
+    $('enable-all-btn').classList.toggle('hidden', offCount === 0);
     const countedExpenses = countedList(expenseList);
     const countedIncomes = countedList(incomeList);
     const expenseTotal = countedExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -866,6 +870,27 @@
       localStorage.setItem('gastos_show_all', state.showAll ? '1' : '0');
       document.querySelectorAll('#filter-toggle .chip').forEach((b) => b.classList.toggle('active', b === btn));
       loadDashboard();
+    });
+
+    $('enable-all-btn').addEventListener('click', async () => {
+      const { from, to, label } = periodRange(state.anchorDate, state.periodType);
+      const userFilter = state.scope === 'me' ? state.currentUser : undefined;
+      const n = state.offCount || 0;
+      const ok = await showConfirm(
+        `Ligar ${n === 1 ? 'o movimento desligado' : `os ${n} movimentos desligados`} de ${label}${userFilter ? ` (${USER_LABELS[userFilter]})` : ''}? Voltam a contar nas contas.`,
+        'Ligar tudo',
+        true,
+      );
+      if (!ok) return;
+      try {
+        const payload = { from: state.periodType === 'range' ? state.rangeFrom : from, to: state.periodType === 'range' ? state.rangeTo : to };
+        if (userFilter) payload.user = userFilter;
+        const result = await api('/api/expenses/include-all', { method: 'POST', body: JSON.stringify(payload) });
+        showToast(`${result.updated} ${result.updated === 1 ? 'movimento ligado' : 'movimentos ligados'}`);
+        loadDashboard();
+      } catch (err) {
+        showToast('Não foi possível ligar tudo.', 'error');
+      }
     });
 
     document.querySelectorAll('#list-mode-toggle .chip').forEach((b) => b.classList.toggle('active', b.dataset.mode === state.listMode));

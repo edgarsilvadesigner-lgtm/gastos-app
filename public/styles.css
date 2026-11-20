@@ -601,6 +601,18 @@ input:focus { outline: none; border-color: var(--accent); }
 .filter-row .chip { white-space: nowrap; }
 .filter-row .list-mode-toggle { margin: 0; }
 .filter-row #excluded-count { margin-left: auto; }
+.enable-all-btn {
+  background: var(--income);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.enable-all-btn:active { transform: scale(0.96); }
 
 .switch.mini {
   width: 54px;

@@ -117,6 +117,15 @@ app.post('/api/expenses', requireAuth, asyncHandler(async (req, res) => {
   res.status(201).json(expense);
 }));
 
+app.post('/api/expenses/include-all', requireAuth, asyncHandler(async (req, res) => {
+  const { user, from, to } = req.body || {};
+  const isDate = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  if (user !== undefined && !USERS.has(user)) return res.status(400).json({ error: 'invalid_user' });
+  if ((from !== undefined && !isDate(from)) || (to !== undefined && !isDate(to))) return res.status(400).json({ error: 'invalid_date' });
+  const updated = await store.includeAll({ user, from, to });
+  res.json({ updated });
+}));
+
 app.put('/api/expenses/:id', requireAuth, asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const { user, category, amount, date, note, type, included } = req.body || {};

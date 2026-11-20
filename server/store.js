@@ -70,6 +70,19 @@ async function updateExpense(id, fields) {
   return stripMongoId(doc);
 }
 
+async function includeAll({ user, from, to } = {}) {
+  const db = await getDb();
+  const query = { included: false };
+  if (user) query.user = user;
+  if (from || to) {
+    query.date = {};
+    if (from) query.date.$gte = from;
+    if (to) query.date.$lte = to;
+  }
+  const result = await db.collection('expenses').updateMany(query, { $set: { included: true } });
+  return result.modifiedCount;
+}
+
 async function deleteExpense(id) {
   const db = await getDb();
   const result = await db.collection('expenses').deleteOne({ id });
@@ -94,6 +107,7 @@ module.exports = {
   listExpenses,
   addExpense,
   updateExpense,
+  includeAll,
   deleteExpense,
   listCustomCategories,
   addCustomCategory,
