@@ -1,8 +1,8 @@
 (() => {
   const USER_LABELS = { edgar: 'Edgar', nelia: 'Nélia' };
   const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  const MONTHS_FULL_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  const TOTAL_LABEL = { expense: 'Total gasto', income: 'Total recebido' };
+  const MONTH_CYCLE_DAY = 20;
+  const TOTAL_LABEL ={ expense: 'Total gasto', income: 'Total recebido' };
   const NEW_TITLE = { expense: 'Nova despesa', income: 'Novo rendimento' };
   const EDIT_TITLE = { expense: 'Editar despesa', income: 'Editar rendimento' };
   const EMPTY_MESSAGE = { expense: 'Ainda não há despesas neste período.', income: 'Ainda não há rendimentos neste período.' };
@@ -211,8 +211,6 @@
   // ---------- period math ----------
   function startOfWeek(d) { const day = (d.getDay() + 6) % 7; const r = new Date(d); r.setDate(d.getDate() - day); return r; }
   function endOfWeek(d) { const s = startOfWeek(d); const r = new Date(s); r.setDate(s.getDate() + 6); return r; }
-  function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
-  function endOfMonth(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
   function startOfYear(d) { return new Date(d.getFullYear(), 0, 1); }
   function endOfYear(d) { return new Date(d.getFullYear(), 11, 31); }
 
@@ -225,8 +223,16 @@
         return { from: fmtDate(s), to: fmtDate(e), label: `${s.getDate()} - ${e.getDate()} ${MONTHS_PT[e.getMonth()]}` };
       }
       case 'month': {
-        const s = startOfMonth(anchor), e = endOfMonth(anchor);
-        return { from: fmtDate(s), to: fmtDate(e), label: `${MONTHS_FULL_PT[anchor.getMonth()]} ${anchor.getFullYear()}` };
+        const s = anchor.getDate() >= MONTH_CYCLE_DAY
+          ? new Date(anchor.getFullYear(), anchor.getMonth(), MONTH_CYCLE_DAY)
+          : new Date(anchor.getFullYear(), anchor.getMonth() - 1, MONTH_CYCLE_DAY);
+        const e = new Date(s.getFullYear(), s.getMonth() + 1, MONTH_CYCLE_DAY - 1);
+        const startYear = s.getFullYear() !== e.getFullYear() ? ` ${s.getFullYear()}` : '';
+        return {
+          from: fmtDate(s),
+          to: fmtDate(e),
+          label: `${s.getDate()} ${MONTHS_PT[s.getMonth()]}${startYear} - ${e.getDate()} ${MONTHS_PT[e.getMonth()]} ${e.getFullYear()}`,
+        };
       }
       case 'year': {
         const s = startOfYear(anchor), e = endOfYear(anchor);
@@ -243,7 +249,7 @@
     const d = new Date(anchor);
     if (type === 'day') d.setDate(d.getDate() + delta);
     else if (type === 'week') d.setDate(d.getDate() + 7 * delta);
-    else if (type === 'month') d.setMonth(d.getMonth() + delta);
+    else if (type === 'month') return new Date(d.getFullYear(), d.getMonth() + delta, Math.min(d.getDate(), 28));
     else if (type === 'year') d.setFullYear(d.getFullYear() + delta);
     return d;
   }
@@ -457,6 +463,7 @@
         </span>
         <span class="cat-amount">${formatMoney(e.amount)}</span>
       `;
+      row.appendChild(createMiniSwitch(e, () => loadDashboard()));
       row.addEventListener('click', () => openAddView(e));
       attachSwipeToDelete(row, async () => {
         await api(`/api/expenses/${e.id}`, { method: 'DELETE' });
@@ -551,7 +558,7 @@
     const threshold = -76;
 
     rowEl.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('.t-delete')) return;
+      if (e.target.closest('.t-delete, .switch')) return;
       dragging = true;
       startX = e.clientX;
       rowEl.classList.remove('snapping');
@@ -623,6 +630,7 @@
         loadDashboard();
       }
 
+      row.insertBefore(createMiniSwitch(e, () => { openCategoryDetail(categoryId, type); loadDashboard(); }), row.querySelector('.t-delete'));
       row.querySelector('.t-info').addEventListener('click', () => openAddView(e));
       row.querySelector('.t-delete').addEventListener('click', async (ev) => {
         ev.stopPropagation();
@@ -648,6 +656,34 @@
 
   function countedList(list) {
     return state.scope === 'all' ? list.filter((e) => e.included !== false) : list;
+  }
+
+  function createMiniSwitch(e, onChanged) {
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.className = 'switch mini' + (e.included === false ? '' : ' on');
+    sw.setAttribute('role', 'switch');
+    sw.setAttribute('aria-checked', String(e.included !== false));
+    sw.setAttribute('aria-label', 'Contar nas contas de ambos');
+    sw.innerHTML = '<span class="switch-label switch-label-on">SIM</span><span class="switch-label switch-label-off">NÃO</span><span class="switch-knob"></span>';
+    sw.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+    sw.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      const next = e.included === false;
+      sw.classList.toggle('on', next);
+      sw.setAttribute('aria-checked', String(next));
+      try {
+        await api(`/api/expenses/${e.id}`, { method: 'PUT', body: JSON.stringify({ included: next }) });
+        e.included = next;
+        showToast(next ? 'Conta nas contas de ambos' : 'Fora das contas de ambos');
+        onChanged();
+      } catch (err) {
+        sw.classList.toggle('on', !next);
+        sw.setAttribute('aria-checked', String(!next));
+        showToast('Não foi possível alterar.', 'error');
+      }
+    });
+    return sw;
   }
 
   function offTagHtml(e) {
