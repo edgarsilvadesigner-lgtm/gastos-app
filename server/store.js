@@ -44,7 +44,7 @@ async function listExpenses({ user, from, to, type } = {}) {
   return docs.map(stripMongoId);
 }
 
-async function addExpense({ user, category, amount, date, note, type }) {
+async function addExpense({ user, category, amount, date, note, type, included }) {
   const db = await getDb();
   const id = await nextSequence('expenses');
   const expense = {
@@ -55,6 +55,7 @@ async function addExpense({ user, category, amount, date, note, type }) {
     date,
     note: note || '',
     type: type || 'expense',
+    included: included !== false,
     createdAt: new Date().toISOString(),
   };
   await db.collection('expenses').insertOne(expense);

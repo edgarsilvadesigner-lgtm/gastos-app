@@ -104,22 +104,27 @@ app.get('/api/expenses', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 app.post('/api/expenses', requireAuth, asyncHandler(async (req, res) => {
-  const { user, category, amount, date, note, type } = req.body || {};
+  const { user, category, amount, date, note, type, included } = req.body || {};
   if (!USERS.has(user)) return res.status(400).json({ error: 'invalid_user' });
   if (type !== undefined && type !== 'expense' && type !== 'income') return res.status(400).json({ error: 'invalid_type' });
+  if (included !== undefined && typeof included !== 'boolean') return res.status(400).json({ error: 'invalid_included' });
   const effectiveType = type || 'expense';
   if (!(await isValidCategory(effectiveType, category))) return res.status(400).json({ error: 'invalid_category' });
   const numAmount = Number(amount);
   if (!Number.isFinite(numAmount) || numAmount <= 0) return res.status(400).json({ error: 'invalid_amount' });
   if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'invalid_date' });
-  const expense = await store.addExpense({ user, category, amount: numAmount, date, note: typeof note === 'string' ? note.slice(0, 500) : '', type: effectiveType });
+  const expense = await store.addExpense({ user, category, amount: numAmount, date, note: typeof note === 'string' ? note.slice(0, 500) : '', type: effectiveType, included });
   res.status(201).json(expense);
 }));
 
 app.put('/api/expenses/:id', requireAuth, asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
-  const { user, category, amount, date, note, type } = req.body || {};
+  const { user, category, amount, date, note, type, included } = req.body || {};
   const fields = {};
+  if (included !== undefined) {
+    if (typeof included !== 'boolean') return res.status(400).json({ error: 'invalid_included' });
+    fields.included = included;
+  }
   if (user !== undefined) {
     if (!USERS.has(user)) return res.status(400).json({ error: 'invalid_user' });
     fields.user = user;
@@ -165,8 +170,11 @@ app.get('/api/report.xlsx', requireAuth, asyncHandler(async (req, res) => {
     categoryLookup('income'),
   ]);
 
-  const totalIncome = incomes.reduce((s, e) => s + e.amount, 0);
-  const totalExpense = expenses.reduce((s, e) => s + e.amount, 0);
+  const countable = (list) => (user ? list : list.filter((e) => e.included !== false));
+  const countedExpenses = countable(expenses);
+  const countedIncomes = countable(incomes);
+  const totalIncome = countedIncomes.reduce((s, e) => s + e.amount, 0);
+  const totalExpense = countedExpenses.reduce((s, e) => s + e.amount, 0);
   const balance = totalIncome - totalExpense;
   const currencyFmt = '#,##0.00 "€"';
 
@@ -218,7 +226,7 @@ app.get('/api/report.xlsx', requireAuth, asyncHandler(async (req, res) => {
   const expHeaderRow = summary.addRow(['Despesas por categoria', '']);
   expHeaderRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
   expHeaderRow.eachCell((cell) => { cell.fill = headerFill; });
-  for (const row of groupByCategory(expenses, expenseCatMap)) {
+  for (const row of groupByCategory(countedExpenses, expenseCatMap)) {
     const r = summary.addRow([row.label, row.amount]);
     r.getCell(2).numFmt = currencyFmt;
   }
@@ -228,7 +236,7 @@ app.get('/api/report.xlsx', requireAuth, asyncHandler(async (req, res) => {
   const incHeaderRow = summary.addRow(['Rendimentos por categoria', '']);
   incHeaderRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
   incHeaderRow.eachCell((cell) => { cell.fill = headerFill; });
-  for (const row of groupByCategory(incomes, incomeCatMap)) {
+  for (const row of groupByCategory(countedIncomes, incomeCatMap)) {
     const r = summary.addRow([row.label, row.amount]);
     r.getCell(2).numFmt = currencyFmt;
   }
@@ -242,6 +250,7 @@ app.get('/api/report.xlsx', requireAuth, asyncHandler(async (req, res) => {
       { header: 'Categoria', key: 'category', width: 24 },
       { header: 'Nota', key: 'note', width: 34 },
       { header: 'Valor', key: 'amount', width: 14 },
+      { header: 'Conta nos totais de ambos', key: 'counted', width: 24 },
     ];
     const header = sheet.getRow(1);
     header.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -253,10 +262,11 @@ app.get('/api/report.xlsx', requireAuth, asyncHandler(async (req, res) => {
         category: catMap[e.category] || e.category,
         note: e.note || '',
         amount: e.amount,
+        counted: e.included === false ? 'Não' : 'Sim',
       });
     }
     sheet.getColumn('amount').numFmt = currencyFmt;
-    sheet.autoFilter = { from: 'A1', to: 'E1' };
+    sheet.autoFilter = { from: 'A1', to: 'F1' };
   }
 
   addTransactionSheet('Despesas', expenses, expenseCatMap);

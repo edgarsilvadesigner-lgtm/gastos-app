@@ -225,6 +225,18 @@
       <label class="field-label" for="note-input">Nota (opcional)</label>
       <input id="note-input" type="text" maxlength="200" placeholder="Ex: mercado da semana" />
 
+      <div class="include-row">
+        <div class="include-text">
+          <span class="include-title">Contar nas contas de ambos</span>
+          <span class="include-hint">Desliga em transferências entre vocês (ex: dinheiro que passas à Nélia), para não aparecer em duplicado.</span>
+        </div>
+        <button type="button" id="include-switch" class="switch on" role="switch" aria-checked="true" aria-label="Contar nas contas de ambos">
+          <span class="switch-label switch-label-on">SIM</span>
+          <span class="switch-label switch-label-off">NÃO</span>
+          <span class="switch-knob"></span>
+        </button>
+      </div>
+
       <p id="form-error" class="error hidden"></p>
       <button type="submit" class="btn-primary">Guardar</button>
     </form>

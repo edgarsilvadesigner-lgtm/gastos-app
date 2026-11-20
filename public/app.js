@@ -25,6 +25,7 @@
     viewingCategoryType: null,
     chartMode: localStorage.getItem('gastos_chart_mode') || 'donut',
     listMode: localStorage.getItem('gastos_list_mode') || 'groups',
+    formIncluded: true,
     lastRows: [],
     lastTotal: 0,
   };
@@ -447,11 +448,11 @@
       bg.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 7"/></svg>';
 
       const row = document.createElement('div');
-      row.className = 'category-row';
+      row.className = 'category-row' + (e.included === false ? ' is-excluded' : '');
       row.innerHTML = `
         ${categoryBadgeHtml(cat)}
         <span class="cat-info">
-          <span class="cat-name">${escapeHtml(e.note || cat.label)}</span>
+          <span class="cat-name">${escapeHtml(e.note || cat.label)}${offTagHtml(e)}</span>
           <span class="cat-meta">${escapeHtml(cat.label)} · ${d.getDate()} ${MONTHS_PT[d.getMonth()]} · ${USER_LABELS[e.user]}</span>
         </span>
         <span class="cat-amount">${formatMoney(e.amount)}</span>
@@ -468,10 +469,10 @@
     });
   }
 
-  function renderCategoryBreakdown(expenses, total, type) {
-    const rows = groupByCategory(expenses, total);
+  function renderCategoryBreakdown(expenses, counted, total, type) {
+    const rows = groupByCategory(counted, total);
     $('empty-state-message').textContent = EMPTY_MESSAGE[type];
-    $('empty-state').classList.toggle('hidden', expenses.length > 0);
+    $('empty-state').classList.toggle('hidden', (state.listMode === 'date' ? expenses : counted).length > 0);
     if (state.listMode === 'date') {
       renderFlatList(expenses, type);
     } else {
@@ -511,11 +512,14 @@
       api(`/api/expenses?${buildParams({ user: userFilter, from: effectiveFrom, to: effectiveTo, type: 'expense' }).toString()}`),
       api(`/api/expenses?${buildParams({ user: userFilter, from: effectiveFrom, to: effectiveTo, type: 'income' }).toString()}`),
     ]);
-    const expenseTotal = expenseList.reduce((sum, e) => sum + e.amount, 0);
-    const incomeTotal = incomeList.reduce((sum, e) => sum + e.amount, 0);
+    const countedExpenses = countedList(expenseList);
+    const countedIncomes = countedList(incomeList);
+    const expenseTotal = countedExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const incomeTotal = countedIncomes.reduce((sum, e) => sum + e.amount, 0);
     const netBalance = incomeTotal - expenseTotal;
 
     const activeList = state.viewType === 'income' ? incomeList : expenseList;
+    const countedActive = state.viewType === 'income' ? countedIncomes : countedExpenses;
     const activeTotal = state.viewType === 'income' ? incomeTotal : expenseTotal;
 
     setAnimatedMoney($('total-amount'), activeTotal);
@@ -526,7 +530,7 @@
     $('balance-net').classList.toggle('income', netBalance >= 0);
     $('balance-net').classList.toggle('expense', netBalance < 0);
     state.lastExpenses = activeList;
-    renderCategoryBreakdown(activeList, activeTotal, state.viewType);
+    renderCategoryBreakdown(activeList, countedActive, activeTotal, state.viewType);
 
     if (state.periodType === 'range') {
       renderTrend(null);
@@ -535,7 +539,7 @@
       const spanFrom = buckets[0].from;
       const spanTo = buckets[buckets.length - 1].to;
       const spanList = await api(`/api/expenses?${buildParams({ user: userFilter, from: spanFrom, to: spanTo, type: state.viewType }).toString()}`);
-      const totals = buckets.map((b) => spanList.filter((e) => e.date >= b.from && e.date <= b.to).reduce((s, e) => s + e.amount, 0));
+      const totals = buckets.map((b) => countedList(spanList).filter((e) => e.date >= b.from && e.date <= b.to).reduce((s, e) => s + e.amount, 0));
       renderTrend(totals);
     }
   }
@@ -599,11 +603,11 @@
       bg.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 7"/></svg>';
 
       const row = document.createElement('div');
-      row.className = 'transaction-row';
+      row.className = 'transaction-row' + (e.included === false ? ' is-excluded' : '');
       const d = parseDate(e.date);
       row.innerHTML = `
         <span class="t-info">
-          <span class="t-note">${escapeHtml(e.note || cat.label)}</span>
+          <span class="t-note">${escapeHtml(e.note || cat.label)}${offTagHtml(e)}</span>
           <span class="t-date">${d.getDate()} ${MONTHS_PT[d.getMonth()]} · <span class="t-user">${USER_LABELS[e.user]}</span></span>
         </span>
         <span class="t-amount">${formatMoney(e.amount)}</span>
@@ -635,6 +639,21 @@
     showView('view-category');
   }
 
+  function setIncluded(value) {
+    state.formIncluded = value;
+    const sw = $('include-switch');
+    sw.classList.toggle('on', value);
+    sw.setAttribute('aria-checked', String(value));
+  }
+
+  function countedList(list) {
+    return state.scope === 'all' ? list.filter((e) => e.included !== false) : list;
+  }
+
+  function offTagHtml(e) {
+    return e.included === false ? '<span class="off-tag">fora de ambos</span>' : '';
+  }
+
   function setFormType(type) {
     state.formType = type;
     document.querySelectorAll('#type-quick .ttab').forEach((c) => c.classList.toggle('active', c.dataset.type === type));
@@ -655,10 +674,12 @@
       $('date-input').classList.remove('hidden');
       document.querySelectorAll('#date-quick .chip').forEach((c) => c.classList.remove('active'));
       state.selectedCategoryId = expense.category;
+      setIncluded(expense.included !== false);
       const opt = $('category-grid').querySelector(`[data-id="${expense.category}"]`);
       if (opt) opt.classList.add('selected');
     } else {
       state.editingExpenseId = null;
+      setIncluded(true);
       const type = state.viewingCategoryType || state.viewType;
       setFormType(type);
       $('add-title').textContent = NEW_TITLE[type];
@@ -862,6 +883,8 @@
       showView(state.viewingCategoryId ? 'view-category' : 'view-dashboard');
     });
 
+    $('include-switch').addEventListener('click', () => setIncluded(!state.formIncluded));
+
     $('type-quick').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-type]');
       if (!btn || state.editingExpenseId) return;
@@ -911,6 +934,7 @@
         date: $('date-input').value,
         note: $('note-input').value,
         type: state.formType,
+        included: state.formIncluded,
       };
       const isEdit = Boolean(state.editingExpenseId);
       try {
