@@ -110,6 +110,15 @@
         </div>
       </div>
 
+      <div class="filter-row">
+        <span class="muted small">Movimentos</span>
+        <div class="list-mode-toggle" id="filter-toggle">
+          <button type="button" data-all="0" class="chip active">Só ligados</button>
+          <button type="button" data-all="1" class="chip">Todos</button>
+        </div>
+        <span id="excluded-count" class="muted small"></span>
+      </div>
+
       <button id="export-btn" class="export-btn" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
         Exportar relatório (Excel)
@@ -227,10 +236,10 @@
 
       <div class="include-row">
         <div class="include-text">
-          <span class="include-title">Contar nas contas de ambos</span>
-          <span class="include-hint">Desliga em transferências entre vocês (ex: dinheiro que passas à Nélia), para não aparecer em duplicado.</span>
+          <span class="include-title">Contar nas contas</span>
+          <span class="include-hint">Desliga em transferências entre vocês (ex: dinheiro que passas à Nélia), para não contar em nenhuma vista.</span>
         </div>
-        <button type="button" id="include-switch" class="switch on" role="switch" aria-checked="true" aria-label="Contar nas contas de ambos">
+        <button type="button" id="include-switch" class="switch on" role="switch" aria-checked="true" aria-label="Contar nas contas">
           <span class="switch-label switch-label-on">SIM</span>
           <span class="switch-label switch-label-off">NÃO</span>
           <span class="switch-knob"></span>

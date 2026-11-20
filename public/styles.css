@@ -591,6 +591,17 @@ input:focus { outline: none; border-color: var(--accent); }
 }
 .switch.on .switch-knob { transform: translateX(40px); }
 
+.filter-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-bottom: 12px;
+}
+.filter-row .chip { white-space: nowrap; }
+.filter-row .list-mode-toggle { margin: 0; }
+.filter-row #excluded-count { margin-left: auto; }
+
 .switch.mini {
   width: 54px;
   height: 26px;

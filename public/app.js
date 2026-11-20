@@ -26,6 +26,7 @@
     chartMode: localStorage.getItem('gastos_chart_mode') || 'donut',
     listMode: localStorage.getItem('gastos_list_mode') || 'groups',
     formIncluded: true,
+    showAll: localStorage.getItem('gastos_show_all') === '1',
     lastRows: [],
     lastTotal: 0,
   };
@@ -454,7 +455,7 @@
       bg.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 7"/></svg>';
 
       const row = document.createElement('div');
-      row.className = 'category-row' + (e.included === false ? ' is-excluded' : '');
+      row.className = 'category-row' + (isDimmed(e) ? ' is-excluded' : '');
       row.innerHTML = `
         ${categoryBadgeHtml(cat)}
         <span class="cat-info">
@@ -519,6 +520,8 @@
       api(`/api/expenses?${buildParams({ user: userFilter, from: effectiveFrom, to: effectiveTo, type: 'expense' }).toString()}`),
       api(`/api/expenses?${buildParams({ user: userFilter, from: effectiveFrom, to: effectiveTo, type: 'income' }).toString()}`),
     ]);
+    const offCount = [...expenseList, ...incomeList].filter((e) => e.included === false).length;
+    $('excluded-count').textContent = offCount ? `${offCount} desligado${offCount === 1 ? '' : 's'}` : '';
     const countedExpenses = countedList(expenseList);
     const countedIncomes = countedList(incomeList);
     const expenseTotal = countedExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -610,7 +613,7 @@
       bg.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 7"/></svg>';
 
       const row = document.createElement('div');
-      row.className = 'transaction-row' + (e.included === false ? ' is-excluded' : '');
+      row.className = 'transaction-row' + (isDimmed(e) ? ' is-excluded' : '');
       const d = parseDate(e.date);
       row.innerHTML = `
         <span class="t-info">
@@ -655,7 +658,11 @@
   }
 
   function countedList(list) {
-    return state.scope === 'all' ? list.filter((e) => e.included !== false) : list;
+    return state.showAll ? list : list.filter((e) => e.included !== false);
+  }
+
+  function isDimmed(e) {
+    return e.included === false && !state.showAll;
   }
 
   function createMiniSwitch(e, onChanged) {
@@ -664,7 +671,7 @@
     sw.className = 'switch mini' + (e.included === false ? '' : ' on');
     sw.setAttribute('role', 'switch');
     sw.setAttribute('aria-checked', String(e.included !== false));
-    sw.setAttribute('aria-label', 'Contar nas contas de ambos');
+    sw.setAttribute('aria-label', 'Contar nas contas');
     sw.innerHTML = '<span class="switch-label switch-label-on">SIM</span><span class="switch-label switch-label-off">NÃO</span><span class="switch-knob"></span>';
     sw.addEventListener('pointerdown', (ev) => ev.stopPropagation());
     sw.addEventListener('click', async (ev) => {
@@ -675,7 +682,7 @@
       try {
         await api(`/api/expenses/${e.id}`, { method: 'PUT', body: JSON.stringify({ included: next }) });
         e.included = next;
-        showToast(next ? 'Conta nas contas de ambos' : 'Fora das contas de ambos');
+        showToast(next ? 'Ligado: conta nas contas' : 'Desligado: fora das contas');
         onChanged();
       } catch (err) {
         sw.classList.toggle('on', !next);
@@ -687,7 +694,7 @@
   }
 
   function offTagHtml(e) {
-    return e.included === false ? '<span class="off-tag">fora de ambos</span>' : '';
+    return e.included === false ? '<span class="off-tag">desligado</span>' : '';
   }
 
   function setFormType(type) {
@@ -851,6 +858,16 @@
       renderChart(state.lastRows, state.lastTotal);
     });
 
+    document.querySelectorAll('#filter-toggle .chip').forEach((b) => b.classList.toggle('active', (b.dataset.all === '1') === state.showAll));
+    $('filter-toggle').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-all]');
+      if (!btn) return;
+      state.showAll = btn.dataset.all === '1';
+      localStorage.setItem('gastos_show_all', state.showAll ? '1' : '0');
+      document.querySelectorAll('#filter-toggle .chip').forEach((b) => b.classList.toggle('active', b === btn));
+      loadDashboard();
+    });
+
     document.querySelectorAll('#list-mode-toggle .chip').forEach((b) => b.classList.toggle('active', b.dataset.mode === state.listMode));
     $('list-mode-toggle').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-mode]');
@@ -906,6 +923,7 @@
       const effectiveTo = state.periodType === 'range' ? state.rangeTo : to;
       const userFilter = state.scope === 'me' ? state.currentUser : undefined;
       const params = buildParams({ user: userFilter, from: effectiveFrom, to: effectiveTo });
+      if (state.showAll) params.set('all', '1');
       window.location.href = `/api/report.xlsx?${params.toString()}`;
     });
   }

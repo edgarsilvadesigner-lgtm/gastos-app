@@ -160,8 +160,9 @@ app.delete('/api/expenses/:id', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 app.get('/api/report.xlsx', requireAuth, asyncHandler(async (req, res) => {
-  const { user, from, to } = req.query;
+  const { user, from, to, all } = req.query;
   if (user && !USERS.has(user)) return res.status(400).json({ error: 'invalid_user' });
+  const ignoreSwitches = all === '1';
 
   const [expenses, incomes, expenseCatMap, incomeCatMap] = await Promise.all([
     store.listExpenses({ user, from, to, type: 'expense' }),
@@ -170,7 +171,7 @@ app.get('/api/report.xlsx', requireAuth, asyncHandler(async (req, res) => {
     categoryLookup('income'),
   ]);
 
-  const countable = (list) => (user ? list : list.filter((e) => e.included !== false));
+  const countable = (list) => (ignoreSwitches ? list : list.filter((e) => e.included !== false));
   const countedExpenses = countable(expenses);
   const countedIncomes = countable(incomes);
   const totalIncome = countedIncomes.reduce((s, e) => s + e.amount, 0);
@@ -201,6 +202,7 @@ app.get('/api/report.xlsx', requireAuth, asyncHandler(async (req, res) => {
   titleRow.font = { bold: true, size: 16 };
   summary.addRow([`Período: ${from || 'início'} até ${to || 'hoje'}`]).font = { italic: true, color: { argb: 'FF666666' } };
   summary.addRow([`Utilizador: ${user ? USER_LABELS[user] : 'Edgar e Nélia (ambos)'}`]).font = { italic: true, color: { argb: 'FF666666' } };
+  summary.addRow([ignoreSwitches ? 'Movimentos: todos (interruptores ignorados)' : 'Movimentos: só os ligados (os desligados não contam nos totais)']).font = { italic: true, color: { argb: 'FF666666' } };
   summary.addRow([]);
 
   const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1C1C1F' } };
@@ -250,7 +252,7 @@ app.get('/api/report.xlsx', requireAuth, asyncHandler(async (req, res) => {
       { header: 'Categoria', key: 'category', width: 24 },
       { header: 'Nota', key: 'note', width: 34 },
       { header: 'Valor', key: 'amount', width: 14 },
-      { header: 'Conta nos totais de ambos', key: 'counted', width: 24 },
+      { header: 'Interruptor (conta nos totais)', key: 'counted', width: 28 },
     ];
     const header = sheet.getRow(1);
     header.font = { bold: true, color: { argb: 'FFFFFFFF' } };
