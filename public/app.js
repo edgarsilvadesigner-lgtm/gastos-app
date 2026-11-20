@@ -1,7 +1,7 @@
 (() => {
   const USER_LABELS = { edgar: 'Edgar', nelia: 'Nélia' };
   const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  const MONTH_CYCLE_DAY = 20;
+  const MONTH_START_DAY = 21;
   const TOTAL_LABEL ={ expense: 'Total gasto', income: 'Total recebido' };
   const NEW_TITLE = { expense: 'Nova despesa', income: 'Novo rendimento' };
   const EDIT_TITLE = { expense: 'Editar despesa', income: 'Editar rendimento' };
@@ -226,10 +226,10 @@
         return { from: fmtDate(s), to: fmtDate(e), label: `${s.getDate()} - ${e.getDate()} ${MONTHS_PT[e.getMonth()]}` };
       }
       case 'month': {
-        const s = anchor.getDate() >= MONTH_CYCLE_DAY
-          ? new Date(anchor.getFullYear(), anchor.getMonth(), MONTH_CYCLE_DAY)
-          : new Date(anchor.getFullYear(), anchor.getMonth() - 1, MONTH_CYCLE_DAY);
-        const e = new Date(s.getFullYear(), s.getMonth() + 1, MONTH_CYCLE_DAY - 1);
+        const s = anchor.getDate() >= MONTH_START_DAY
+          ? new Date(anchor.getFullYear(), anchor.getMonth(), MONTH_START_DAY)
+          : new Date(anchor.getFullYear(), anchor.getMonth() - 1, MONTH_START_DAY);
+        const e = new Date(s.getFullYear(), s.getMonth() + 1, MONTH_START_DAY - 1);
         const startYear = s.getFullYear() !== e.getFullYear() ? ` ${s.getFullYear()}` : '';
         return {
           from: fmtDate(s),
